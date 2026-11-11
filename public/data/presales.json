@@ -1,0 +1,10 @@
+{
+  "status": "pending",
+  "fetchedAt": null,
+  "message": null,
+  "source": {
+    "name": "한국부동산원 청약홈 분양정보 조회 서비스",
+    "url": "https://www.data.go.kr/data/15098547/openapi.do"
+  },
+  "items": []
+}

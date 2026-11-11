@@ -1,0 +1,32 @@
+[
+  { "id": "wangji", "name": "왕지동", "kind": "법정동", "match": ["왕지동"] },
+  { "id": "jorye", "name": "조례동", "kind": "법정동", "match": ["조례동"] },
+  { "id": "yeonhyang", "name": "연향동", "kind": "법정동", "match": ["연향동"] },
+  {
+    "id": "sindae",
+    "name": "신대지구",
+    "kind": "택지지구",
+    "match": ["신대리"],
+    "approx": true,
+    "note": "법정동 기준 해룡면 신대리 거래를 표시합니다. 지구 경계와 완전히 일치하지 않을 수 있습니다."
+  },
+  {
+    "id": "geumdang",
+    "name": "금당지구",
+    "kind": "택지지구",
+    "match": ["연향동", "조례동"],
+    "approx": true,
+    "note": "금당지구는 연향동·조례동 일부에 걸쳐 있어 법정동 단위 자료로는 분리할 수 없습니다. 두 법정동 전체 거래를 함께 표시합니다."
+  },
+  {
+    "id": "ocheon",
+    "name": "오천지구",
+    "kind": "택지지구",
+    "match": ["오천동"],
+    "approx": true,
+    "note": "법정동 기준 오천동 거래를 표시합니다. 지구 경계와 완전히 일치하지 않을 수 있습니다."
+  },
+  { "id": "yongdang", "name": "용당동", "kind": "법정동", "match": ["용당동"] },
+  { "id": "pungdeok", "name": "풍덕동", "kind": "법정동", "match": ["풍덕동"] },
+  { "id": "deogam", "name": "덕암동", "kind": "법정동", "match": ["덕암동"] }
+]

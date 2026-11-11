@@ -1,0 +1,10 @@
+{
+  "status": "pending",
+  "fetchedAt": null,
+  "message": "학교 위치 표준데이터 연계 준비 중입니다.",
+  "source": {
+    "name": "전국초중등학교위치표준데이터",
+    "url": "https://www.data.go.kr/data/15021148/standard.do"
+  },
+  "items": []
+}

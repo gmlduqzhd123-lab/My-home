@@ -1,0 +1,158 @@
+# 순천집 ZIP — 순천 부동산의 모든 것
+
+> 순천의 모든 집, 모든 가격, 모든 변화를 한눈에.
+
+국토교통부 실거래가 공개 자료를 매일 수집해 순천시 아파트 매매 거래를 검색·비교하는 정적 웹앱입니다.
+서버·회원가입 없이 GitHub Pages 만으로 동작합니다.
+
+- 프런트엔드: React + TypeScript + Vite, Tailwind CSS, shadcn/ui 방식 컴포넌트, Recharts, Zustand, HashRouter, PWA
+- 데이터: Python(표준 라이브러리만 사용) 수집기 → `public/data/*.json`
+- 자동화·배포: GitHub Actions → GitHub Pages
+
+> **현재 상태** — 저장소에는 실제 거래 데이터가 들어 있지 않습니다(인증키가 없어 수집을 실행하지 못했습니다).
+> 아래 2~4단계를 마치면 실제 자료가 채워집니다. 그 전까지 화면에는 "데이터 연결 대기"가 표시되며 가상의 가격은 보여 주지 않습니다.
+
+---
+
+## 1. 내 컴퓨터에서 실행하기
+
+필요한 프로그램: [Node.js](https://nodejs.org/) 22 이상, [Python](https://www.python.org/) 3.10 이상, Git.
+
+```bash
+npm install
+```
+
+```bash
+npm run dev
+```
+
+브라우저에서 터미널에 표시된 주소(보통 http://localhost:5173)를 엽니다.
+
+### 화면만 먼저 둘러보고 싶을 때 (가상 테스트 데이터)
+
+```bash
+python scripts/make_fixture.py
+```
+
+```bash
+npm run dev:fixture
+```
+
+단지명이 모두 `[가상]`으로 시작하는 **가짜 데이터**가 표시되고 화면 위에 빨간 경고 띠가 나옵니다.
+이 데이터는 `tests/fixtures/` 에만 있으며 운영 데이터(`public/data`)와 배포 빌드에는 들어가지 않습니다(빌드 검증 스크립트가 확인).
+
+## 2. 인증키 발급
+
+| 키 | 용도 | 필수 | 발급 방법 |
+|---|---|---|---|
+| `MOLIT_API_KEY` | 아파트 매매 실거래 조회 | **필수** | [공공데이터포털](https://www.data.go.kr) 가입 → [국토교통부_아파트 매매 실거래가 상세 자료](https://www.data.go.kr/data/15126468/openapi.do) "활용신청" → 마이페이지에서 일반 인증키 복사 |
+| (같은 키) | 단지 세대수·난방 등 기본정보 | 선택 | 같은 계정으로 [공동주택 단지 목록](https://www.data.go.kr/data/15057332/openapi.do), [공동주택 기본 정보](https://www.data.go.kr/data/15058453/openapi.do) 활용신청 |
+| (같은 키) | 분양 공고 | 선택 | 같은 계정으로 [청약홈 분양정보 조회 서비스](https://www.data.go.kr/data/15098547/openapi.do) 활용신청 |
+| `KAKAO_REST_API_KEY` | 단지 주소 → 좌표 변환 | 선택 | [Kakao Developers](https://developers.kakao.com) → 애플리케이션 추가 → 앱 키의 **REST API 키** |
+| `KAKAO_MAP_APP_KEY` | 브라우저 지도 표시 | 선택 | 같은 앱의 **JavaScript 키**. 카카오맵 사용 설정 ON, **JavaScript SDK 도메인에 서비스 주소 등록 필수** |
+
+- 공공데이터포털 키는 계정당 하나이며 활용신청한 서비스에만 동작합니다. 신청 직후에는 반영까지 시간이 걸릴 수 있습니다.
+- Kakao JavaScript 키는 브라우저에 공개되는 키입니다. 도메인(예: `https://내계정.github.io`, 로컬 개발용 `http://localhost:5173`)을 등록해 다른 사이트에서 쓰지 못하게 하세요. REST 키는 절대 공개하지 마세요.
+- 선택 키가 없어도 실거래 검색·차트·비교·관심·브리핑은 모두 동작합니다. 지도 키가 없으면 지도 자리에 "연결 대기"가 표시되고 단지 목록으로 탐색합니다.
+
+## 3. 내 컴퓨터에서 데이터 수집해 보기
+
+`.env.example` 을 `.env` 로 복사하고 키를 채운 뒤:
+
+```bash
+python scripts/collect.py
+```
+
+- 첫 실행은 최근 24개월, 이후 실행은 최근 12개월을 다시 조회해 신고 지연·해제·정정을 반영합니다(`--months N` 으로 변경).
+- 결과는 `public/data/` 에 생성됩니다. 좌표·K-apt 조회 결과는 `data-cache/` 에 저장해 재사용합니다.
+- 조회에 실패하면 기존 데이터 파일은 건드리지 않고 `manifest.json` 에 실패 사실만 기록합니다(종료 코드 3).
+- 지도 키를 로컬에서 쓰려면 `.env` 의 `VITE_KAKAO_MAP_APP_KEY` 에 JavaScript 키를 넣고 `npm run dev` 를 다시 시작하세요.
+
+## 4. GitHub Pages 로 배포하기
+
+1. GitHub 에 새 저장소를 만들고 이 폴더를 올립니다.
+
+   ```bash
+   git remote add origin https://github.com/<계정>/<저장소>.git
+   ```
+
+   ```bash
+   git push -u origin main
+   ```
+
+2. 저장소 **Settings → Pages → Build and deployment → Source** 를 **GitHub Actions** 로 바꿉니다.
+3. **Settings → Secrets and variables → Actions → New repository secret** 으로 키를 등록합니다.
+   `MOLIT_API_KEY`(필수), `KAKAO_REST_API_KEY`, `KAKAO_MAP_APP_KEY`, `KAPT_API_KEY`, `APPLYHOME_API_KEY`(선택).
+4. **Actions → "데이터 수집 · 배포" → Run workflow** 를 눌러 첫 수집을 실행합니다.
+5. 완료되면 `https://<계정>.github.io/<저장소>/` 에서 접속할 수 있습니다.
+
+이후에는 매일 한국시간 오전 7시 30분에 자동으로 수집·배포됩니다(GitHub 예약 실행은 수십 분 늦어질 수 있어 8시 이전 완료를 목표로 앞당겼습니다. 실제 완료 시각은 화면의 "데이터 기준"에 표시됩니다).
+
+- 기준 경로(`base`)는 저장소 이름으로 자동 설정됩니다. 직접 지정하려면 `VITE_BASE` 를 사용하세요.
+- 수집이 실패한 날에도 마지막 정상 데이터로 사이트는 배포되고, 워크플로는 실패로 표시되어 알림을 받습니다. 화면에는 "최근 조회 실패" 띠가 나타납니다.
+- 예약 실행은 저장소에 60일간 활동이 없으면 GitHub 이 자동으로 멈춥니다. 수집 커밋이 매일 생기므로 보통은 유지됩니다.
+
+## 5. 명령어
+
+| 명령 | 설명 |
+|---|---|
+| `npm run dev` | 개발 서버 |
+| `npm run dev:fixture` | 가상 테스트 데이터로 개발 서버 |
+| `npm run build` | 타입 검사 + 프로덕션 빌드(`dist/`) |
+| `npm run preview` | 빌드 결과 미리보기 |
+| `npm run typecheck` / `npm run lint` | TypeScript 검사 / ESLint |
+| `npm run test` | 프런트엔드 테스트(Vitest) |
+| `npm run test:py` | 수집기 테스트(unittest) |
+| `npm run check:pages` | GitHub Pages 경로·빌드 검증 |
+| `npm run check:secrets` | API 키 노출 점검 |
+| `npm run verify` | 위 검사를 모두 실행 |
+| `python scripts/collect.py` | 공공데이터 수집 |
+
+## 6. 데이터 구조 (`public/data`)
+
+| 파일 | 내용 |
+|---|---|
+| `manifest.json` | 상태, 마지막 정상 갱신 시각(`generatedAt`), 마지막 시도 결과, 수집된 달 목록, 출처별 연결 상태 |
+| `trades/YYYY-MM.json` | 계약월별 거래(출처·조회 시각 포함). 화면은 필요한 달만 내려받습니다 |
+| `by-complex/<단지ID>.json` | 단지별 전체 거래(단지 상세·비교용) |
+| `complexes.json` | 단지 목록(주소, 준공연도, 좌표, 최근 거래, K-apt 기본정보) |
+| `stats/summary.json` | 월별 거래량·중위가, 법정동별 집계, 최근 거래 |
+| `briefing/latest.json`, `briefing/archive/YYYY-MM-DD.json`, `briefing/index.json` | 일별 브리핑 |
+| `presales.json` | 청약홈 분양 공고 |
+| `developments.json`, `schools.json` | 미연계(연결 대기 상태 파일) |
+
+수집 파이프라인: API 호출 → 응답 검증 → 정규화 → 중복 제거 → 해제·정정 확인 → 통계 → 스테이징에 JSON 생성 → 스키마 검증 → 반영.
+검증에 실패하면 운영 파일을 덮어쓰지 않습니다.
+
+### 데이터 처리 원칙
+
+- **해제 거래**는 목록에 구분 표시하고 통계에서 뺍니다.
+- 이전에 있던 거래가 새 조회에서 **사라져도 삭제하거나 해제로 간주하지 않습니다.** "최근 조회 미확인"으로 표시하고 통계에서만 뺍니다(정정되면 새 거래로 다시 나타납니다).
+- 한 달의 조회 건수가 기존의 절반 아래로 떨어지면 비정상 응답으로 보고 그 달은 기존 자료를 유지합니다.
+- 단지는 행정코드가 아니라 `법정동명 + 지번 + 단지명`으로 식별합니다(2026-07-01 전남광주통합특별시 출범으로 시군구코드가 46150 → 12150 으로 바뀌었기 때문). 수집기는 두 코드를 모두 조회해 중복을 제거합니다.
+- 좌표는 Kakao 주소 검색 결과가 있을 때만 기록합니다. 없으면 `null` 이며 지도에 표시하지 않습니다.
+
+## 7. 알려진 제한 · 미검증 사항
+
+- **실제 API 호출은 아직 한 번도 실행되지 않았습니다.** 엔드포인트·필드명은 공공데이터포털 공식 명세(2026-11-11 확인)를 따랐고 가상 응답으로 테스트했지만, 실제 응답으로 검증하려면 인증키가 필요합니다.
+- 실거래 API 가 통합 이전 계약분을 어느 시군구코드로 돌려주는지 공식 안내를 찾지 못했습니다. 두 코드를 모두 조회하도록 해 두었으니 첫 수집 로그에서 월별 건수를 확인하세요.
+- 읍·면 지역의 법정동명 표기(예: `해룡면 신대리`)를 실제 응답에서 확인하지 못했습니다. 신대지구 필터는 법정동명에 `신대리`가 포함되는지로 판단합니다.
+- Kakao 지도·마커 클러스터·모바일 하단 시트·주변 시설 조회는 코드만 작성되었고 키가 없어 실제 동작을 확인하지 못했습니다.
+- 생활권 중 신대지구·금당지구·오천지구는 법정동 경계와 일치하지 않는 근사 구분입니다(화면에 안내 표시).
+- 미구현: 전월세 실거래, 한국부동산원 통계, 관리비, 학교 목록 수집, 통학구역 경계, 순천시 개발·고시 공고, 주택형별 분양가, 취득세 자동 계산.
+- 관심 단지는 브라우저 localStorage 에만 저장됩니다. 기기 간 동기화는 없으며 내보내기·가져오기 파일로 옮길 수 있습니다.
+
+## 8. 폴더 구조
+
+```
+src/                 React 앱 (pages, components, lib, store, config)
+scripts/collector/   Python 수집기 (molit, normalize, merge, stats, briefing, validate, enrich, pipeline)
+scripts/tests/       수집기 테스트
+tools/               빌드 검증·키 노출 점검·아이콘 생성
+public/data/         운영 데이터(JSON)
+data-cache/          좌표·K-apt 조회 캐시(수집 시 생성)
+tests/fixtures/      가상 테스트 데이터(make_fixture.py 로 생성)
+.github/workflows/   deploy.yml(수집·배포), ci.yml(PR 검증)
+```
+
+자세한 요구사항은 [PRD.md](PRD.md) 를 참고하세요.

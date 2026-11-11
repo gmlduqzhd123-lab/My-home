@@ -1,0 +1,122 @@
+name: 데이터 수집 · 배포
+
+on:
+  schedule:
+    # 매일 07:30 KST (22:30 UTC). GitHub 예약 실행은 지연될 수 있어 08:00 이전 완료를 목표로 30분 앞당겼다.
+    # 실제 완료 시각은 manifest.json 의 generatedAt 으로 화면에 표시된다.
+    - cron: '30 22 * * *'
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+    inputs:
+      months:
+        description: '재조회할 개월 수(비우면 첫 실행 24, 이후 12)'
+        required: false
+        default: ''
+      skip_collect:
+        description: '수집 없이 빌드·배포만'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      collect: ${{ steps.collect.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: 수집기 테스트
+        run: npm run test:py
+
+      # 수집 실패 시에도 마지막 정상 데이터로 배포를 계속한다(실패 사실은 manifest 와 화면에 표시).
+      - name: 공공데이터 수집
+        id: collect
+        if: github.event_name != 'push' && inputs.skip_collect != true
+        continue-on-error: true
+        env:
+          MOLIT_API_KEY: ${{ secrets.MOLIT_API_KEY }}
+          KAPT_API_KEY: ${{ secrets.KAPT_API_KEY }}
+          APPLYHOME_API_KEY: ${{ secrets.APPLYHOME_API_KEY }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          MONTHS: ${{ inputs.months }}
+        run: |
+          if [ -n "$MONTHS" ]; then python scripts/collect.py --months "$MONTHS"; else python scripts/collect.py; fi
+
+      - name: 수집 결과 커밋
+        if: github.event_name != 'push' && inputs.skip_collect != true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data data-cache
+          if git diff --cached --quiet; then
+            echo "변경 없음"
+          else
+            git commit -m "data: $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M') KST 수집"
+            git push
+          fi
+
+      - name: 타입 검사 · 린트 · 테스트
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run test
+
+      - name: 빌드
+        env:
+          # Kakao 지도 JavaScript 키(브라우저 공개 키 — Kakao Developers 에서 도메인 제한 필수)
+          VITE_KAKAO_MAP_APP_KEY: ${{ secrets.KAKAO_MAP_APP_KEY }}
+        run: npm run build
+
+      - name: 배포 경로 · API 키 노출 점검
+        env:
+          MOLIT_API_KEY: ${{ secrets.MOLIT_API_KEY }}
+          KAPT_API_KEY: ${{ secrets.KAPT_API_KEY }}
+          APPLYHOME_API_KEY: ${{ secrets.APPLYHOME_API_KEY }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+        run: |
+          npm run check:pages
+          npm run check:secrets
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  collect-status:
+    # 배포는 끝내되, 수집이 실패한 날은 실행 결과를 실패로 남겨 알림을 받는다.
+    needs: [build, deploy]
+    if: always() && needs.build.outputs.collect == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::공공데이터 수집에 실패했습니다. 사이트는 마지막 정상 데이터로 배포되었습니다."
+          exit 1

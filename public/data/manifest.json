@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "status": "pending",
+  "region": {
+    "name": "순천시",
+    "lawdCd": "12150"
+  },
+  "generatedAt": null,
+  "lastAttemptAt": null,
+  "lastAttemptStatus": null,
+  "lastAttemptMessage": null,
+  "months": [],
+  "totals": {
+    "trades": 0,
+    "cancelled": 0,
+    "complexes": 0,
+    "geocoded": 0
+  },
+  "sources": [
+    {
+      "id": "molit-trade",
+      "name": "국토교통부 아파트 매매 실거래가 상세 자료",
+      "provider": "국토교통부 · 공공데이터포털",
+      "url": "https://www.data.go.kr/data/15126468/openapi.do",
+      "status": "pending"
+    },
+    {
+      "id": "kapt",
+      "name": "공동주택 단지 목록·기본정보 (K-apt)",
+      "provider": "국토교통부 · 공공데이터포털",
+      "url": "https://www.data.go.kr/data/15058453/openapi.do",
+      "status": "pending"
+    },
+    {
+      "id": "kakao-geo",
+      "name": "단지 좌표 (Kakao 주소 검색)",
+      "provider": "Kakao",
+      "url": "https://developers.kakao.com/docs/ko/local/dev-guide",
+      "status": "pending"
+    },
+    {
+      "id": "applyhome",
+      "name": "청약홈 분양정보 조회 서비스",
+      "provider": "한국부동산원 · 공공데이터포털",
+      "url": "https://www.data.go.kr/data/15098547/openapi.do",
+      "status": "pending"
+    }
+  ]
+}

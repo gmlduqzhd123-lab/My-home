@@ -1,0 +1,17 @@
+node_modules
+dist
+dev-dist
+*.local
+.env
+.env.*
+!.env.example
+__pycache__
+*.pyc
+.pytest_cache
+.DS_Store
+Thumbs.db
+*.log
+.claude/
+.staging-*
+tests/fixtures/data/
+tests/fixtures/cache/
