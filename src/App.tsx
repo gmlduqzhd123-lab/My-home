@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useLocation } from 'react-router-dom'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { AppShell } from '@/components/layout/AppShell'
 import { LoadingBlock, NotAvailable } from '@/components/ui/states'
 
@@ -17,8 +18,10 @@ const CalculatorPage = lazy(() => import('@/pages/CalculatorPage'))
 const AboutPage = lazy(() => import('@/pages/AboutPage'))
 
 export default function App() {
+  const { pathname } = useLocation()
   return (
     <AppShell>
+      <ErrorBoundary resetKey={pathname}>
       <Suspense fallback={<LoadingBlock rows={6} />}>
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -37,6 +40,7 @@ export default function App() {
           <Route path="*" element={<NotAvailable title="페이지를 찾을 수 없습니다">주소를 다시 확인해 주세요.</NotAvailable>} />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
     </AppShell>
   )
 }
