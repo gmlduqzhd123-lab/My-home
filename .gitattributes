@@ -1,0 +1,2 @@
+# iCalendar 는 CRLF 줄바꿈이 규격이므로 Git 이 줄바꿈을 바꾸지 않게 한다
+*.ics -text
