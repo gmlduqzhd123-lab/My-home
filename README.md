@@ -51,6 +51,7 @@ npm run dev:fixture
 | (같은 키) | 단지 세대수·난방 등 기본정보, 거래 없는 단지까지 포함한 전체 단지 목록 | 선택 | 같은 계정으로 [공동주택 단지 목록](https://www.data.go.kr/data/15057332/openapi.do), [공동주택 기본 정보](https://www.data.go.kr/data/15058453/openapi.do) 활용신청 |
 | (같은 키) | 학교 목록·가까운 학교 | 선택 | 같은 계정으로 [전국초중등학교위치표준데이터](https://www.data.go.kr/data/15021148/standard.do) 활용신청 |
 | `REB_API_KEY` | 순천시 아파트 매매가격지수 | 선택 | [한국부동산원 R-ONE](https://www.reb.or.kr/r-one/portal/openapi/openApiDevPage.do) 로그인 후 Open API 인증키 발급(공공데이터포털 키와 다름) |
+| (같은 키) | 순천 LH 분양·임대 공고 | 선택 | 같은 계정으로 [한국토지주택공사_분양임대공고문 조회 서비스](https://www.data.go.kr/data/15058530/openapi.do) 활용신청 |
 | (같은 키) | 분양 공고·주택형별 분양가 | 선택 | 같은 계정으로 [청약홈 분양정보 조회 서비스](https://www.data.go.kr/data/15098547/openapi.do) 활용신청 |
 | `KAKAO_REST_API_KEY` | 단지 주소 → 좌표 변환 | 선택 | [Kakao Developers](https://developers.kakao.com) → 애플리케이션 추가 → 앱 키의 **REST API 키** |
 | `KAKAO_MAP_APP_KEY` | 브라우저 지도 표시 | 선택 | 같은 앱의 **JavaScript 키**. 카카오맵 사용 설정 ON, **JavaScript SDK 도메인에 서비스 주소 등록 필수** |
@@ -131,7 +132,7 @@ python scripts/collect.py
 | `stats/summary.json` | 월별 거래량·중위가, 법정동별 집계, 최근 거래 |
 | `briefing/latest.json`, `briefing/archive/YYYY-MM-DD.json`, `briefing/index.json` | 일별 브리핑 |
 | `presales.json` | 청약홈 분양 공고 |
-| `developments.json` | 미연계(연결 대기 상태 파일) |
+| `developments.json` | 순천 LH 분양·임대 공고(공고명에 '순천' 포함, 최근 2년) |
 
 수집 파이프라인: API 호출 → 응답 검증 → 정규화 → 중복 제거 → 해제·정정 확인 → 통계 → 스테이징에 JSON 생성 → 스키마 검증 → 반영.
 검증에 실패하면 운영 파일을 덮어쓰지 않습니다.
@@ -151,11 +152,24 @@ python scripts/collect.py
 - **K-apt 기본정보와 청약홈 분양정보는 첫 수집에서 조회에 실패했습니다**(해당 서비스 활용신청이 필요한 것으로 보입니다). 연동 코드는 실제 응답으로 검증되지 않았습니다.
 - Kakao 지도·마커 클러스터·모바일 하단 시트·주변 시설 조회는 코드만 작성되었고 키가 없어 실제 동작을 확인하지 못했습니다. 좌표가 확인된 단지는 아직 0곳입니다.
 - 생활권 중 신대지구·금당지구·오천지구는 법정동 경계와 일치하지 않는 근사 구분입니다(화면에 안내 표시).
-- 미구현: 관리비(단지당 월 28회 호출이 필요하고 금액 단위가 명세에 없어, K-apt 연결 후 실제 응답으로 확인한 뒤 구현 예정), 통학구역 경계(공개 API 없음), 순천시 개발·고시 공고(공개 API 없음), 취득세 자동 계산(의도적으로 제외).
+- LH 분양·임대 공고 연계는 가상 응답으로만 테스트했습니다. 응답의 바깥 구조는 공식 명세에 없어, 구조에 의존하지 않고 공고 목록을 찾도록 작성했습니다.
+- 미구현: 관리비(단지당 월 28회 호출이 필요하고 금액 단위가 명세에 없어, K-apt 연결 후 실제 응답으로 확인한 뒤 구현 예정), 통학구역 경계(공개 API 없음), 순천시청 개발·고시 공고(공개 API 없음), 취득세 자동 계산(의도적으로 제외).
 - 접근성 자동 검사(axe)는 밝은 화면 기준으로만 실행합니다. 어두운 화면의 색 대비는 자동 검사하지 않았습니다.
 - 관심 단지는 브라우저 localStorage 에만 저장됩니다. 기기 간 동기화는 없으며 내보내기·가져오기 파일로 옮길 수 있습니다.
 
-## 8. 폴더 구조
+## 8. 참고한 자료
+
+- [the주택 (행정안전부 김민, AI 정부 실험실 공공 저장소)](https://gitlab.aigov.go.kr/acesharp/HOME) — 전국 주택공급 정책 추진현황 시스템.
+  이 저장소가 수집하는 공개 원천 목록을 참고해 LH 분양·임대 공고를 연계했습니다.
+  해당 저장소에는 라이선스가 지정돼 있지 않아 **코드와 문서는 가져오지 않았고**, 연계 코드는 공공데이터포털의 공식 명세를 보고 새로 작성했습니다.
+- 같은 목록에서 순천에 적용할 수 있지만 아직 연계하지 않은 원천:
+  [건축HUB 주택인허가정보](https://www.data.go.kr/data/15136560/openapi.do)(향후 공급 예정 단지),
+  [건축물대장](https://www.data.go.kr/data/15134735/openapi.do)(동·층·주차 등 건물 정보),
+  [국토교통 통계누리 API](https://stat.molit.go.kr/portal/api/info.do)(인허가·착공·준공·미분양 통계),
+  [LH 단지정보](https://www.data.go.kr/data/15080989/fileData.do),
+  [KOSIS](https://kosis.kr/openapi/devGuide/devGuide_0201List.do)·[SGIS](https://sgis.mods.go.kr/developer/html/newOpenApi/api/dataApi/census.html)(인구·가구).
+
+## 9. 폴더 구조
 
 ```
 src/                 React 앱 (pages, components, lib, store, config)

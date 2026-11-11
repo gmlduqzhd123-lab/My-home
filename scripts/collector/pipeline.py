@@ -36,7 +36,7 @@ def pending_manifest() -> dict:
 
 
 def sources(*, trade: str, kapt: str, geo: str, presale: str, rent: str = "pending", index: str = "pending",
-            school: str = "pending") -> list[dict]:
+            school: str = "pending", lh: str = "pending") -> list[dict]:
     return [
         {"id": "molit-trade", "name": config.SOURCE_TRADE, "provider": "국토교통부 · 공공데이터포털",
          "url": config.MOLIT_TRADE_PAGE, "status": trade},
@@ -48,6 +48,8 @@ def sources(*, trade: str, kapt: str, geo: str, presale: str, rent: str = "pendi
          "url": "https://developers.kakao.com/docs/ko/local/dev-guide", "status": geo},
         {"id": "applyhome", "name": "청약홈 분양정보 조회 서비스", "provider": "한국부동산원 · 공공데이터포털",
          "url": config.APPLYHOME_PAGE, "status": presale},
+        {"id": "lh-notice", "name": "LH 분양임대공고문 조회 서비스", "provider": "한국토지주택공사 · 공공데이터포털",
+         "url": config.LH_NOTICE_PAGE, "status": lh},
         {"id": "reb-index", "name": "부동산통계(R-ONE) 아파트 매매가격지수", "provider": "한국부동산원",
          "url": config.REB_PAGE, "status": index},
         {"id": "schools", "name": "전국초중등학교위치표준데이터", "provider": "한국교육시설안전원 · 공공데이터포털",
@@ -62,8 +64,9 @@ def init_data(data_dir: Path, now: datetime) -> None:
         "presales.json": {"status": "pending", "fetchedAt": None, "message": None,
                           "source": {"name": "한국부동산원 청약홈 분양정보 조회 서비스", "url": config.APPLYHOME_PAGE},
                           "items": []},
-        "developments.json": {"status": "pending", "fetchedAt": None,
-                              "message": "개발·고시 공고는 공식 공개 API 가 확인되지 않아 아직 연계하지 않았습니다.", "items": []},
+        "developments.json": {"status": "pending", "fetchedAt": None, "message": None,
+                              "source": {"name": "한국토지주택공사 분양임대공고문 조회 서비스", "url": config.LH_NOTICE_PAGE},
+                              "items": []},
         "schools.json": {"status": "pending", "fetchedAt": None, "message": "학교 위치 표준데이터 연계 준비 중입니다.",
                          "source": {"name": "전국초중등학교위치표준데이터",
                                     "url": "https://www.data.go.kr/data/15021148/standard.do"}, "items": []},
@@ -275,6 +278,17 @@ def run(
         log(f"[경고] 청약홈 분양정보 조회 실패: {e}")
         presale_file.update({"status": "failed", "message": "청약홈 분양정보 조회에 실패했습니다. 활용신청 승인 여부를 확인하세요."})
 
+    # LH 분양·임대 공고(순천)
+    lh_file = {"status": "pending", "fetchedAt": None, "message": None, "items": [],
+               **(read_json(data_dir / "developments.json") or {}),
+               "source": {"name": "한국토지주택공사 분양임대공고문 조회 서비스", "url": config.LH_NOTICE_PAGE}}
+    try:
+        lh_file.update({"status": "ok", "fetchedAt": now_iso, "message": None,
+                        "items": enrich.fetch_lh_notices(env.get("LH_API_KEY") or key, now, get=get)})
+    except Exception as e:  # noqa: BLE001
+        log(f"[경고] LH 공고 조회 실패: {e}")
+        lh_file.update({"status": "failed", "message": "LH 분양·임대 공고 조회에 실패했습니다. 활용신청 승인 여부를 확인하세요."})
+
     # 가격지수(R-ONE) — 별도 키(REB_API_KEY)가 있을 때만
     index_src = {"name": "한국부동산원 부동산통계(R-ONE) (월) 아파트 매매가격지수", "url": config.REB_PAGE}
     index_file = {"status": "pending", "fetchedAt": None, "message": None, "region": "전남광주>전남>순천시", "items": [],
@@ -344,6 +358,7 @@ def run(
         "sources": sources(trade="connected", kapt=kapt_status, geo=geo_status, rent=rent_status,
                            index="connected" if index_file["status"] == "ok" else index_file["status"],
                            school="connected" if school_file["status"] == "ok" else school_file["status"],
+                           lh="connected" if lh_file["status"] == "ok" else lh_file["status"],
                            presale="connected" if presale_file["status"] == "ok" else presale_file["status"]),
     }
     log(f"지역코드별 매매 수신 건수: {lawd_counts}")
@@ -388,6 +403,7 @@ def run(
         write_json(staging / "presales.json", presale_file, pretty=True)
         write_json(staging / "stats" / "price-index.json", index_file)
         write_json(staging / "schools.json", school_file)
+        write_json(staging / "developments.json", lh_file, pretty=True)
         write_json(staging / "briefing" / "latest.json", brief)
         write_json(staging / "briefing" / "archive" / f"{today}.json", brief)
         write_json(staging / "briefing" / "index.json", briefing.update_index(index, brief), pretty=True)

@@ -253,6 +253,66 @@ def fetch_presale_prices(key: str, house_manage_no: str, *, get: Get = http_get)
     return out
 
 
+# ───────────────────────── LH 분양·임대 공고 ─────────────────────────
+
+def _find_rows(obj, field: str) -> list[dict]:
+    """응답 JSON 어디에 있든 field 를 가진 dict 목록을 찾아 반환한다(봉투 구조에 의존하지 않기 위해)."""
+    if isinstance(obj, list):
+        if obj and all(isinstance(x, dict) for x in obj) and any(field in x for x in obj):
+            return obj
+        for x in obj:
+            found = _find_rows(x, field)
+            if found:
+                return found
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            found = _find_rows(v, field)
+            if found:
+                return found
+    return []
+
+
+def fetch_lh_notices(key: str, now: datetime, *, get: Get = http_get, months: int = 24) -> list[dict]:
+    """LH 분양·임대 공고 중 공고명에 '순천'이 들어간 것. 최근 months 개월 게시분."""
+    key = normalize_service_key(key)
+    start = now - timedelta(days=months * 31)
+    rows: list[dict] = []
+    for page in range(1, 11):
+        data = _json(get(config.LH_NOTICE_URL, {
+            "ServiceKey": key, "PG_SZ": 100, "PAGE": page, "PAN_NM": "순천",
+            "PAN_NT_ST_DT": start.strftime("%Y.%m.%d"), "CLSG_DT": now.strftime("%Y.%m.%d")}, secrets=[key]))
+        if isinstance(data, dict) and "OpenAPI_ServiceResponse" in data:
+            msg = (data["OpenAPI_ServiceResponse"].get("cmmMsgHeader") or {}).get("returnAuthMsg", "인증 오류")
+            raise ApiError(f"LH 공고 API 오류: {msg}", auth=True)
+        got = _find_rows(data, "PAN_NM")
+        rows += got
+        if len(got) < 100:
+            break
+    out, seen = [], set()
+    for r in rows:
+        title, url = _str(r.get("PAN_NM")), _str(r.get("DTL_URL"))
+        if not title or "순천" not in title:
+            continue
+        m = re.search(r"PAN_ID:(\w+)", url or "")
+        nid = m.group(1) if m else "lh-" + name_key(title)[:40]
+        if nid in seen:
+            continue
+        seen.add(nid)
+        out.append({
+            "id": nid,
+            "title": title,
+            "kind": " · ".join(x for x in (_str(r.get("UPP_AIS_TP_NM")), _str(r.get("AIS_TP_CD_NM"))) if x) or None,
+            "status": _str(r.get("PAN_SS")),
+            "region": _str(r.get("CNP_CD_NM")),
+            "date": parse_short_date(_str(r.get("PAN_NT_ST_DT"))),
+            "closeDate": parse_short_date(_str(r.get("CLSG_DT"))),
+            "url": url,
+            "source": "LH 분양·임대 공고",
+        })
+    out.sort(key=lambda x: (x["date"] or "", x["id"]), reverse=True)
+    return out
+
+
 # ───────────────────────── 한국부동산원 가격지수 ─────────────────────────
 
 def fetch_price_index(key: str, *, get: Get = http_get) -> list[dict]:

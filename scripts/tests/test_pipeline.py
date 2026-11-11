@@ -338,6 +338,26 @@ class EnrichTest(unittest.TestCase):
         with self.assertRaises(ApiError):
             enrich.fetch_schools("K", get=lambda *a, **k: json.dumps(auth).encode())
 
+    def test_lh_notices_only_suncheon(self):
+        rows = [
+            {"PAN_NM": "순천신대 A-1블록 행복주택 입주자 모집공고", "UPP_AIS_TP_NM": "임대주택", "AIS_TP_CD_NM": "행복주택",
+             "CNP_CD_NM": "전남광주", "PAN_SS": "공고중", "PAN_NT_ST_DT": "2026.10.20", "CLSG_DT": "2026.11.20",
+             "DTL_URL": "https://apply.lh.or.kr/LH/index.html?gv_param=CCR_CNNT_SYS_DS_CD:02,PAN_ID:0000061111,LCC:Y"},
+            {"PAN_NM": "여수 국민임대 예비입주자 모집", "DTL_URL": "https://apply.lh.or.kr/x?gv_param=PAN_ID:0000062222"},
+            {"PAN_NM": "순천신대 A-1블록 행복주택 입주자 모집공고", "DTL_URL": "https://apply.lh.or.kr/x?gv_param=PAN_ID:0000061111"},
+        ]
+        seen = {}
+        def get(url, params, **k):
+            seen.update(params)
+            return json.dumps([{"dsSch": [{"PAGE": "1"}]}, {"resHeader": [{"SS_CODE": "Y"}], "dsList": rows}]).encode()
+        out = enrich.fetch_lh_notices("K", NOW1, get=get)
+        self.assertEqual(seen["PAN_NM"], "순천")
+        self.assertEqual(seen["CLSG_DT"], "2026.11.10")
+        self.assertEqual(len(out), 1)  # 다른 지역·중복 공고 제외
+        self.assertEqual((out[0]["id"], out[0]["kind"], out[0]["status"], out[0]["date"], out[0]["closeDate"]),
+                         ("0000061111", "임대주택 · 행복주택", "공고중", "2026-10-20", "2026-11-20"))
+        self.assertEqual(enrich.fetch_lh_notices("K", NOW1, get=lambda *a, **k: b'[{"dsSch":[]},{"dsList":[]}]'), [])
+
     def test_geocode_no_result_makes_no_coordinate(self):
         cache: dict = {}
         c = [{"id": "c1", "umdNm": "왕지동", "jibun": "100"}]

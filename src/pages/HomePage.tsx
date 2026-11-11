@@ -2,6 +2,7 @@ import { ArrowRight, Building2, MapPin, Newspaper } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { IndexChart, MedianVolumeChart } from '@/components/charts'
+import { SupplyNotices } from '@/components/SupplyNotices'
 import { TradeTable } from '@/components/TradeTable'
 import { Button } from '@/components/ui/button'
 import { Badge, Card, CardBody, CardHeader, Skeleton } from '@/components/ui/primitives'
@@ -322,11 +323,15 @@ export default function HomePage() {
               </NotAvailable>
             ) : (
               <PendingState title="분양정보 연결 대기 중" className="py-6">
-                청약홈 분양정보는 수집이 실행되면 표시됩니다. 개발·고시 소식은 공식 공개 API 가 확인되지 않아 연계하지 않았습니다.
+                청약홈 분양정보는 수집이 실행되면 표시됩니다.
               </PendingState>
             )
           }
         </ResourceView>
+        <div className="border-t border-line">
+          <p className="px-4 pt-3 text-[13px] font-bold text-ink sm:px-5">LH 분양 · 임대 공고</p>
+          <SupplyNotices limit={3} compact />
+        </div>
       </Card>
     </div>
   )

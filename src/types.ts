@@ -241,11 +241,25 @@ export interface PriceIndexFile {
   items: { ym: string; value: number }[]
 }
 
+/** LH 분양·임대 공고(공고명에 순천이 포함된 것) */
+export interface SupplyNotice {
+  id: string
+  title: string
+  kind: string | null // 예: 임대주택 · 행복주택
+  status: string | null // 공고중 / 접수마감 …
+  region: string | null
+  date: string | null // 공고 게시일
+  closeDate: string | null
+  url: string | null
+  source: string
+}
+
 export interface DevelopmentsFile {
   status: 'ok' | 'pending' | 'failed'
   fetchedAt: string | null
   message: string | null
-  items: { id: string; title: string; date: string; url: string; source: string }[]
+  source?: { name: string; url: string }
+  items: SupplyNotice[]
 }
 
 export interface SchoolsFile {

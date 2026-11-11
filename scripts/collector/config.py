@@ -54,6 +54,9 @@ REB_INDEX_ITM = "100001"  # 지수
 SCHOOL_URL = "https://api.data.go.kr/openapi/tn_pubr_public_elesch_mskul_lc_api"
 SCHOOL_PAGE = "https://www.data.go.kr/data/15021148/standard.do"
 SCHOOL_EDC_SPORT = "8522000"  # 전남광주통합특별시순천교육지원청
+# 한국토지주택공사 분양임대공고문 조회 서비스 (https://www.data.go.kr/data/15058530/openapi.do)
+LH_NOTICE_URL = "https://apis.data.go.kr/B552555/lhLeaseNoticeInfo1/lhLeaseNoticeInfo1"
+LH_NOTICE_PAGE = "https://www.data.go.kr/data/15058530/openapi.do"
 # Kakao Local 주소 검색(좌표 변환)
 KAKAO_ADDRESS_URL = "https://dapi.kakao.com/v2/local/search/address.json"
 

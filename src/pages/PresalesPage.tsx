@@ -1,5 +1,6 @@
 import { ExternalLink } from 'lucide-react'
-import { Badge, Card, CardBody, PageTitle } from '@/components/ui/primitives'
+import { SupplyNotices } from '@/components/SupplyNotices'
+import { Badge, Card, CardBody, CardHeader, PageTitle } from '@/components/ui/primitives'
 import { NotAvailable, PendingState, ResourceView } from '@/components/ui/states'
 import { loadPresales, useResource } from '@/lib/data'
 import { formatDate, formatDateTime, formatPrice } from '@/lib/format'
@@ -64,6 +65,14 @@ export default function PresalesPage() {
         desc="한국부동산원 청약홈 분양정보(공공데이터포털) 기준. 일정·금액은 반드시 모집공고 원문으로 확인하세요"
         action={<Badge tone="warn">2단계 기능 · 실제 조회 미검증</Badge>}
       />
+      <Card>
+        <CardHeader title="LH 분양 · 임대 공고" desc="한국토지주택공사 공고 중 공고명에 ‘순천’이 들어간 것 · 게시일 최신순" />
+        <div className="pt-2">
+          <SupplyNotices />
+        </div>
+      </Card>
+
+      <h2 className="pt-2 text-[15px] font-bold text-ink">청약홈 분양 공고</h2>
       <ResourceView res={res}>
         {(f) => (
           <>

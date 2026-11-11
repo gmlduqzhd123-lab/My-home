@@ -122,6 +122,14 @@ def fake_get(url, params=None, **_):
                "PRZWNER_PRESNATN_DE": "2026-11-05", "CNTRCT_CNCLS_BGNDE": "2026-11-17", "CNTRCT_CNCLS_ENDDE": "2026-11-19",
                "MVN_PREARNGE_YM": "202903", "PBLANC_URL": "https://www.applyhome.co.kr/"}
         return json.dumps({"data": [row]}).encode()
+    if url == config.LH_NOTICE_URL:
+        rows = [{"PAN_NM": "[가상] 순천 테스트지구 A-1블록 행복주택 입주자 모집공고", "UPP_AIS_TP_NM": "임대주택",
+                 "AIS_TP_CD_NM": "행복주택", "CNP_CD_NM": "전남광주", "PAN_SS": "공고중", "PAN_NT_ST_DT": "2026.10.28",
+                 "CLSG_DT": "2026.11.27", "DTL_URL": "https://apply.lh.or.kr/x?gv_param=PAN_ID:FIXTURE0001"},
+                {"PAN_NM": "[가상] 순천 테스트지구 B-2블록 공공분양 입주자 모집공고", "UPP_AIS_TP_NM": "분양주택",
+                 "AIS_TP_CD_NM": "공공분양", "CNP_CD_NM": "전남광주", "PAN_SS": "접수마감", "PAN_NT_ST_DT": "2026.08.11",
+                 "CLSG_DT": "2026.09.02", "DTL_URL": "https://apply.lh.or.kr/x?gv_param=PAN_ID:FIXTURE0002"}]
+        return json.dumps([{"dsSch": [{}]}, {"resHeader": [{"SS_CODE": "Y"}], "dsList": rows}]).encode()
     if url == config.APPLYHOME_MDL_URL:
         rows = [{"HOUSE_TY": "084.9800A", "SUPLY_AR": "113.2", "SUPLY_HSHLDCO": 180, "SPSPLY_HSHLDCO": 120, "LTTOT_TOP_AMOUNT": "46,500"},
                 {"HOUSE_TY": "059.9500B", "SUPLY_AR": "81.4", "SUPLY_HSHLDCO": 120, "SPSPLY_HSHLDCO": 92, "LTTOT_TOP_AMOUNT": "33,900"}]
