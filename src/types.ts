@@ -151,6 +151,8 @@ export interface Complex {
   lastPrice: number | null
   lastArea: number | null
   lastFloor: number | null
+  /** 건축물대장 요약(지번 코드가 확인되고 대장이 조회된 단지만) */
+  building?: BuildingInfo | null
   /** 수집 기간 내 전월세 거래 수(전월세 미연결이면 없음) */
   rentCount?: number
   kapt: KaptInfo | null
@@ -230,6 +232,53 @@ export interface PresalesFile {
   source: { name: string; url: string }
   items: PresaleItem[]
 }
+
+export interface BuildingInfo {
+  households: number | null
+  dongCount: number | null
+  parking: number | null
+  coverageRatio: number | null
+  floorAreaRatio: number | null
+  useDate: string | null
+  name: string | null
+  basis: string // 건축물대장 총괄표제부 / 표제부(동별 합산)
+  topFloor: number | null
+  basementFloors: number | null
+  fetchedAt: string
+}
+
+/** 주택 인허가 사업(건축HUB) */
+export interface PermitItem {
+  id: string
+  name: string | null
+  address: string
+  dong: string
+  households: number | null
+  purpose: string | null
+  permitDate: string | null
+  startDate: string | null
+  startPlanDate: string | null
+  status: string // 허가 / 착공
+}
+
+export interface SupplyFile {
+  status: 'ok' | 'pending' | 'failed'
+  fetchedAt: string | null
+  message: string | null
+  source: { name: string; url: string }
+  coverage: { done: number; total: number } | null
+  items: PermitItem[]
+}
+
+export interface SeriesFile<T> {
+  status: 'ok' | 'pending' | 'failed'
+  fetchedAt: string | null
+  message: string | null
+  source: { name: string; url: string }
+  items: T[]
+}
+export type UnsoldFile = SeriesFile<{ ym: string; unsold: number; afterCompletion: number | null }>
+export type PopulationFile = SeriesFile<{ ym: string; value: number }>
 
 /** 한국부동산원 (월) 아파트 매매가격지수 — 순천시 */
 export interface PriceIndexFile {

@@ -147,6 +147,59 @@ export function RentChart({ points, height = 260 }: { points: { ym: string; jeon
   )
 }
 
+/** 월별 미분양 호수(막대) + 준공 후 미분양(선) */
+export function UnsoldChart({ items, height = 220 }: { items: { ym: string; unsold: number; afterCompletion: number | null }[]; height?: number }) {
+  const last = items[items.length - 1]
+  const summary = items.length
+    ? `${formatYm(items[0].ym)} ${items[0].unsold.toLocaleString('ko-KR')}호 → ${formatYm(last.ym)} ${last.unsold.toLocaleString('ko-KR')}호` +
+      (last.afterCompletion != null ? `(이 중 준공 후 미분양 ${last.afterCompletion.toLocaleString('ko-KR')}호)` : '') +
+      '. 사업주체가 신고한 민간 분양주택 기준입니다.'
+    : '표시할 자료가 없습니다.'
+  return (
+    <ChartFrame summary={summary} height={height}>
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart accessibilityLayer={false} data={items} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+          <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+          <XAxis dataKey="ym" tickFormatter={(v: string) => v.slice(2).replace('-', '.')} tick={AXIS} tickLine={false} axisLine={{ stroke: 'var(--line)' }} minTickGap={24} />
+          <YAxis allowDecimals={false} tick={AXIS} tickLine={false} axisLine={false} width={48} tickFormatter={(v: number) => v.toLocaleString('ko-KR')} />
+          <Tooltip
+            cursor={{ fill: 'var(--surface-2)' }}
+            contentStyle={tooltipStyle}
+            labelFormatter={(v) => formatYm(String(v))}
+            formatter={(v, name) => [`${Number(v).toLocaleString('ko-KR')}호`, name === 'unsold' ? '미분양' : '준공 후 미분양']}
+          />
+          <Legend verticalAlign="top" height={24} iconSize={10} wrapperStyle={{ fontSize: 12 }} formatter={(v) => (v === 'unsold' ? '미분양' : '준공 후 미분양')} />
+          <Bar dataKey="unsold" fill="var(--line)" radius={[3, 3, 0, 0]} maxBarSize={24} />
+          <Line dataKey="afterCompletion" stroke="var(--accent)" strokeWidth={2.5} dot={false} connectNulls isAnimationActive={false} />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </ChartFrame>
+  )
+}
+
+/** 주민등록 인구 추이(선) */
+export function PopulationChart({ items, height = 220 }: { items: { ym: string; value: number }[]; height?: number }) {
+  const first = items[0]
+  const last = items[items.length - 1]
+  const diff = items.length ? last.value - first.value : 0
+  const summary = items.length
+    ? `${formatYm(first.ym)} ${first.value.toLocaleString('ko-KR')}명 → ${formatYm(last.ym)} ${last.value.toLocaleString('ko-KR')}명 (${diff >= 0 ? '+' : ''}${diff.toLocaleString('ko-KR')}명).`
+    : '표시할 자료가 없습니다.'
+  return (
+    <ChartFrame summary={summary} height={height}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart accessibilityLayer={false} data={items} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+          <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+          <XAxis dataKey="ym" tickFormatter={(v: string) => v.slice(2).replace('-', '.')} tick={AXIS} tickLine={false} axisLine={{ stroke: 'var(--line)' }} minTickGap={24} />
+          <YAxis tick={AXIS} tickLine={false} axisLine={false} width={56} domain={['auto', 'auto']} tickFormatter={(v: number) => `${(v / 10000).toFixed(1)}만`} />
+          <Tooltip contentStyle={tooltipStyle} labelFormatter={(v) => formatYm(String(v))} formatter={(v) => [`${Number(v).toLocaleString('ko-KR')}명`, '주민등록 인구']} />
+          <Line dataKey="value" stroke="var(--accent)" strokeWidth={2.5} dot={false} isAnimationActive={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </ChartFrame>
+  )
+}
+
 /** 가격지수 추이(선) */
 export function IndexChart({ items, height = 220 }: { items: { ym: string; value: number }[]; height?: number }) {
   const first = items[0]

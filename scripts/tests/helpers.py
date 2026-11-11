@@ -12,7 +12,8 @@ def item(apt="테스트단지", umd="왕지동", jibun="100", amount="32,500", y
         "excluUseAr": area, "floor": floor, "buildYear": build,
         "dealingGbn": "중개거래", "cdealType": "", "cdealDay": "", "rgstDate": "",
         "aptDong": "", "slerGbn": "개인", "buyerGbn": "개인", "estateAgentSggNm": "순천시",
-        "landLeaseholdGbn": "N", "sggCd": "12150", "aptSeq": "12150-1", "roadNm": "왕지로",
+        "landLeaseholdGbn": "N", "sggCd": "12150", "umdCd": "10300", "bonbun": "0100", "bubun": "0000", "landCd": "1",
+        "aptSeq": "12150-1", "roadNm": "왕지로",
     }
     base.update(extra)
     return base

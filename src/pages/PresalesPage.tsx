@@ -1,4 +1,5 @@
 import { ExternalLink } from 'lucide-react'
+import { PermitList } from '@/components/Permits'
 import { SupplyNotices } from '@/components/SupplyNotices'
 import { Badge, Card, CardBody, CardHeader, PageTitle } from '@/components/ui/primitives'
 import { NotAvailable, PendingState, ResourceView } from '@/components/ui/states'
@@ -69,6 +70,13 @@ export default function PresalesPage() {
         <CardHeader title="LH 분양 · 임대 공고" desc="한국토지주택공사 공고 중 공고명에 ‘순천’이 들어간 것 · 게시일 최신순" />
         <div className="pt-2">
           <SupplyNotices />
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="주택 인허가 현황" desc="순천시에서 허가받은 주택 사업 — 앞으로 공급될 가능성이 있는 단지 · 허가일 최신순" />
+        <div className="pt-2">
+          <PermitList />
         </div>
       </Card>
 

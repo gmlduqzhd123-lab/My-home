@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { makeTrade } from '@/test/factory'
+import { makeComplex, makeTrade } from '@/test/factory'
 import type { Rent } from '@/types'
+import { complexFacts } from './facts'
 import { defaultTradeFilter, filterToParams, filterTrades, paramsToFilter } from './filters'
 import { distanceM, nearest } from './geo'
 import { filterRents, rentMonthly, summarizeRents, type RentFilter } from './rent'
@@ -103,5 +104,23 @@ describe('거리 계산', () => {
       { id: 'near', lat: 34.951, lng: 127.5 },
     ]
     expect(nearest(34.95, 127.5, items, 5).map((x) => x.item.id)).toEqual(['near', 'far'])
+  })
+})
+
+describe('단지 기본 사실(K-apt 우선, 건축물대장 보완)', () => {
+  const building = { households: 596, dongCount: 7, parking: 742, coverageRatio: 17.8, floorAreaRatio: 219.5, useDate: '2012-04-20', name: null, basis: '건축물대장 총괄표제부', topFloor: 18, basementFloors: 2, fetchedAt: '' }
+  const kapt = { kaptCode: 'K', households: 640, dongCount: null, topFloor: 20, useDate: null, heating: null, hallType: null, builder: null, parkingTotal: null, welfare: null, convenient: null, education: null, busTime: null, fetchedAt: '' }
+  it('둘 다 없으면 모두 null', () => {
+    const f = complexFacts(makeComplex())
+    expect([f.households, f.parking, f.floorAreaRatio, f.basis]).toEqual([null, null, null, null])
+  })
+  it('건축물대장만 있으면 그 값을 쓴다', () => {
+    const f = complexFacts(makeComplex({ building }))
+    expect([f.households, f.dongCount, f.topFloor, f.parking, f.floorAreaRatio, f.basis]).toEqual([596, 7, 18, 742, 219.5, '건축물대장 총괄표제부'])
+  })
+  it('K-apt 값을 우선하고 없는 항목만 건축물대장으로 채운다', () => {
+    const f = complexFacts(makeComplex({ kapt, building }))
+    expect([f.households, f.dongCount, f.topFloor, f.parking, f.useDate]).toEqual([640, 7, 20, 742, '2012-04-20'])
+    expect(f.basis).toBe('K-apt 공동주택 기본정보 · 건축물대장 총괄표제부')
   })
 })

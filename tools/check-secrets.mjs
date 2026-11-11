@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const ROOT = process.cwd()
-const SECRET_ENVS = ['MOLIT_API_KEY', 'RENT_API_KEY', 'KAPT_API_KEY', 'APPLYHOME_API_KEY', 'SCHOOL_API_KEY', 'LH_API_KEY', 'REB_API_KEY', 'KAKAO_REST_API_KEY']
+const SECRET_ENVS = ['MOLIT_API_KEY', 'RENT_API_KEY', 'KAPT_API_KEY', 'APPLYHOME_API_KEY', 'SCHOOL_API_KEY', 'LH_API_KEY', 'BUILDING_HUB_API_KEY', 'BUILDING_REGISTER_API_KEY', 'MOLIT_STAT_API_KEY', 'KOSIS_API_KEY', 'REB_API_KEY', 'KAKAO_REST_API_KEY']
 const SCAN_DIRS = ['dist', 'public', 'src', 'scripts', 'tools', '.github', 'data-cache']
 const SKIP = new Set(['node_modules', '__pycache__', '.git'])
 const TEXT = /\.(js|mjs|ts|tsx|json|html|css|py|yml|yaml|md|txt|svg|webmanifest|map)$/i

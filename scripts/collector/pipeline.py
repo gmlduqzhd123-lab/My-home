@@ -11,10 +11,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Mapping
 
-from . import briefing, config, enrich, molit, stats, validate
+from . import briefing, config, enrich, molit, stats, supply, validate
 from .http import ApiError, http_get
 from .merge import MUTABLE, RENT_MUTABLE, Diff, is_active, merge_month
-from .normalize import assign_ids, assign_rent_ids, normalize_items, normalize_rent
+from .normalize import assign_ids, assign_rent_ids, land_codes, normalize_items, normalize_rent
 from .store import commit, read_json, write_json
 
 EXIT_OK, EXIT_FAILED = 0, 3
@@ -36,7 +36,8 @@ def pending_manifest() -> dict:
 
 
 def sources(*, trade: str, kapt: str, geo: str, presale: str, rent: str = "pending", index: str = "pending",
-            school: str = "pending", lh: str = "pending") -> list[dict]:
+            school: str = "pending", lh: str = "pending", permit: str = "pending", building: str = "pending",
+            unsold: str = "pending", population: str = "pending") -> list[dict]:
     return [
         {"id": "molit-trade", "name": config.SOURCE_TRADE, "provider": "국토교통부 · 공공데이터포털",
          "url": config.MOLIT_TRADE_PAGE, "status": trade},
@@ -50,6 +51,14 @@ def sources(*, trade: str, kapt: str, geo: str, presale: str, rent: str = "pendi
          "url": config.APPLYHOME_PAGE, "status": presale},
         {"id": "lh-notice", "name": "LH 분양임대공고문 조회 서비스", "provider": "한국토지주택공사 · 공공데이터포털",
          "url": config.LH_NOTICE_PAGE, "status": lh},
+        {"id": "hub-permit", "name": "건축HUB 주택인허가정보 서비스", "provider": "국토교통부 · 공공데이터포털",
+         "url": supply.HUB_PERMIT_PAGE, "status": permit},
+        {"id": "building-register", "name": "건축물대장 정보 서비스", "provider": "국토교통부 · 공공데이터포털",
+         "url": supply.REGISTER_PAGE, "status": building},
+        {"id": "molit-stat", "name": "국토교통 통계누리 미분양주택현황", "provider": "국토교통부",
+         "url": supply.MOLIT_STAT_PAGE, "status": unsold},
+        {"id": "kosis-population", "name": "KOSIS 주민등록인구", "provider": "통계청",
+         "url": supply.KOSIS_PAGE, "status": population},
         {"id": "reb-index", "name": "부동산통계(R-ONE) 아파트 매매가격지수", "provider": "한국부동산원",
          "url": config.REB_PAGE, "status": index},
         {"id": "schools", "name": "전국초중등학교위치표준데이터", "provider": "한국교육시설안전원 · 공공데이터포털",
@@ -78,7 +87,7 @@ def init_data(data_dir: Path, now: datetime) -> None:
 
 def collect_month(key: str, ym: str, existing: list[dict], now_iso: str, fetch_month: Callable,
                   log: Callable[[str], None], *, normalize=None, assign=assign_ids, mutable=MUTABLE,
-                  counts: dict[str, int] | None = None) -> tuple[list[dict], Diff]:
+                  counts: dict[str, int] | None = None, codes: dict | None = None) -> tuple[list[dict], Diff]:
     """한 계약월 수집·병합(매매·전월세 공용). 실패하면 ApiError. counts 에 지역코드별 수신 건수를 누적한다."""
     per_source: list[list[dict]] = []
     errors: list[str] = []
@@ -92,6 +101,11 @@ def collect_month(key: str, ym: str, existing: list[dict], now_iso: str, fetch_m
             continue
         if counts is not None:
             counts[code] = counts.get(code, 0) + len(items)
+        if codes is not None:
+            for raw in items:
+                found = land_codes(raw)
+                if found:
+                    codes[found[0]] = found[1]
         ok, rejected = normalize_items(items, normalize)
         if len(rejected) > max(2, len(items) * 0.05):
             raise ApiError(f"{ym} {code}: 형식 오류 {len(rejected)}/{len(items)}건 — 응답 구조 변경 의심")
@@ -186,12 +200,14 @@ def run(
             month_files[m["ym"]] = f
     diff = Diff()
     lawd_counts: dict[str, int] = {}
+    # 단지별 법정동·지번 코드(실거래 응답에서 얻는다) — 건축물대장 등 지번 기준 조회용
+    complex_codes: dict = read_json(cache_dir / "complex-codes.json", {})
     failed_months: list[str] = []
     updated: set[str] = set()
     for ym in yms:
         existing = (month_files.get(ym) or {}).get("trades", [])
         try:
-            merged, d = collect_month(key, ym, existing, now_iso, fetch_month, log, counts=lawd_counts)
+            merged, d = collect_month(key, ym, existing, now_iso, fetch_month, log, counts=lawd_counts, codes=complex_codes)
         except ApiError as e:
             if e.auth:
                 return fail(str(e))
@@ -206,6 +222,7 @@ def run(
 
     if not updated:
         return fail(f"모든 달의 조회에 실패했습니다 ({len(failed_months)}개월).")
+    write_json(cache_dir / "complex-codes.json", complex_codes)
     all_trades = [t for f in month_files.values() for t in f["trades"]]
     if not all_trades:
         return fail("조회는 되었으나 거래가 0건입니다. 지역코드(SUNCHEON_LAWD_CODES)와 활용신청 상태를 확인하세요.")
@@ -289,6 +306,86 @@ def run(
         log(f"[경고] LH 공고 조회 실패: {e}")
         lh_file.update({"status": "failed", "message": "LH 분양·임대 공고 조회에 실패했습니다. 활용신청 승인 여부를 확인하세요."})
 
+    # 주택 인허가(법정동별) — 향후 공급 예정 사업
+    permit_file = {"status": "pending", "fetchedAt": None, "message": None, "items": [], "coverage": None,
+                   **(read_json(data_dir / "supply.json") or {}),
+                   "source": {"name": "건축HUB 주택인허가정보 서비스", "url": supply.HUB_PERMIT_PAGE}}
+    permit_cache = read_json(cache_dir / "permits.json", {})
+    try:
+        dong_cache = read_json(cache_dir / "bjdong.json", {})
+        if not dong_cache.get("dongs") or enrich._stale(dong_cache.get("at"), now, 30):
+            try:
+                found = supply.fetch_bjdongs(config.LAWD_CODES, get=get)
+                if found:
+                    dong_cache = {"at": now_iso, "dongs": found}
+                    write_json(cache_dir / "bjdong.json", dong_cache)
+            except Exception as e:  # noqa: BLE001
+                log(f"[경고] 법정동 목록 조회 실패: {e}")
+        dongs = dict(dong_cache.get("dongs") or {})
+        umd_of = {c["id"]: c["umdNm"] for c in base}
+        for cid, c in complex_codes.items():  # 실거래에서 확인된 법정동은 목록에 없어도 포함
+            dongs.setdefault(c["bjdongCd"], umd_of.get(cid, c["bjdongCd"]))
+        if not dongs:
+            raise ApiError("법정동 목록을 확보하지 못했습니다.")
+        try:
+            supply.update_permits(permit_cache, env.get("BUILDING_HUB_API_KEY") or key, dongs, now, get=get)
+        finally:
+            write_json(cache_dir / "permits.json", permit_cache)  # 중간에 실패해도 받은 동은 남긴다
+        covered = sum(1 for d in dongs if d in permit_cache.get("dongs", {}))
+        permit_file.update({"status": "ok", "fetchedAt": now_iso, "message": None,
+                            "items": supply.permit_items(permit_cache, now),
+                            "coverage": {"done": covered, "total": len(dongs)}})
+    except Exception as e:  # noqa: BLE001
+        log(f"[경고] 주택 인허가 조회 실패: {e}")
+        permit_file.update({"status": "failed", "message": "주택 인허가 정보 조회에 실패했습니다. 활용신청 승인 여부를 확인하세요."})
+
+    # 건축물대장(단지 지번별)
+    building_cache = read_json(cache_dir / "building.json", {})
+    building_status = src.get("building-register", "pending")
+    if complex_codes:
+        try:
+            try:
+                supply.update_buildings(building_cache, env.get("BUILDING_REGISTER_API_KEY") or key, complex_codes, now, get=get)
+            finally:
+                write_json(cache_dir / "building.json", building_cache)
+            building_status = "connected"
+        except Exception as e:  # noqa: BLE001
+            log(f"[경고] 건축물대장 조회 실패: {e}")
+            building_status = "connected" if any(v.get("info") for v in building_cache.values()) else "failed"
+    building_by_complex = {cid: v["info"] for cid, v in building_cache.items() if v.get("info")}
+
+    # 통계: 미분양(통계누리), 주민등록 인구(KOSIS) — 각각 별도 키가 있을 때만
+    def series_file(name: str, src_name: str, src_url: str) -> dict:
+        return {"status": "pending", "fetchedAt": None, "message": None, "items": [],
+                **(read_json(data_dir / "stats" / name) or {}), "source": {"name": src_name, "url": src_url}}
+
+    unsold_file = series_file("unsold.json", "국토교통 통계누리 미분양주택현황", supply.MOLIT_STAT_PAGE)
+    stat_key = (env.get("MOLIT_STAT_API_KEY") or "").strip()
+    if stat_key:
+        try:
+            want = config.recent_yms(now, 4 if unsold_file["items"] else 24)
+            got = supply.fetch_unsold(stat_key, want, get=get)
+            merged_items = {x["ym"]: x for x in unsold_file["items"]}
+            merged_items.update({ym: {"ym": ym, **v} for ym, v in got.items()})
+            unsold_file.update({"status": "ok", "fetchedAt": now_iso, "message": None,
+                                "items": [merged_items[k] for k in sorted(merged_items)]})
+        except Exception as e:  # noqa: BLE001
+            log(f"[경고] 미분양 통계 조회 실패: {e}")
+            unsold_file.update({"status": "failed", "message": "미분양 통계 조회에 실패했습니다."})
+
+    population_file = series_file("population.json", "KOSIS 행정구역(시군구)별 주민등록인구", supply.KOSIS_PAGE)
+    kosis_key = (env.get("KOSIS_API_KEY") or "").strip()
+    if kosis_key:
+        try:
+            span = config.recent_yms(now, 60)
+            pop = supply.fetch_population(kosis_key, span[0], span[-1], get=get)
+            if not pop:
+                raise ApiError("순천시 인구 자료가 0건입니다.")
+            population_file.update({"status": "ok", "fetchedAt": now_iso, "message": None, "items": pop})
+        except Exception as e:  # noqa: BLE001
+            log(f"[경고] 인구 통계 조회 실패: {e}")
+            population_file.update({"status": "failed", "message": "주민등록 인구 조회에 실패했습니다."})
+
     # 가격지수(R-ONE) — 별도 키(REB_API_KEY)가 있을 때만
     index_src = {"name": "한국부동산원 부동산통계(R-ONE) (월) 아파트 매매가격지수", "url": config.REB_PAGE}
     index_file = {"status": "pending", "fetchedAt": None, "message": None, "region": "전남광주>전남>순천시", "items": [],
@@ -317,6 +414,8 @@ def run(
 
     # 4) 산출물 생성 (스테이징)
     complexes = stats.build_complexes(all_trades, geocache, kapt_by_complex, all_rents, kapt_only)
+    for c in complexes:
+        c["building"] = building_by_complex.get(c["id"])
     by_ym = {ym: f["trades"] for ym, f in month_files.items()}
     mstats = stats.month_stats(by_ym)
     last12 = config.recent_yms(now, 12)
@@ -359,6 +458,10 @@ def run(
                            index="connected" if index_file["status"] == "ok" else index_file["status"],
                            school="connected" if school_file["status"] == "ok" else school_file["status"],
                            lh="connected" if lh_file["status"] == "ok" else lh_file["status"],
+                           permit="connected" if permit_file["status"] == "ok" else permit_file["status"],
+                           building=building_status,
+                           unsold="connected" if unsold_file["status"] == "ok" else unsold_file["status"],
+                           population="connected" if population_file["status"] == "ok" else population_file["status"],
                            presale="connected" if presale_file["status"] == "ok" else presale_file["status"]),
     }
     log(f"지역코드별 매매 수신 건수: {lawd_counts}")
@@ -404,6 +507,9 @@ def run(
         write_json(staging / "stats" / "price-index.json", index_file)
         write_json(staging / "schools.json", school_file)
         write_json(staging / "developments.json", lh_file, pretty=True)
+        write_json(staging / "supply.json", permit_file)
+        write_json(staging / "stats" / "unsold.json", unsold_file)
+        write_json(staging / "stats" / "population.json", population_file)
         write_json(staging / "briefing" / "latest.json", brief)
         write_json(staging / "briefing" / "archive" / f"{today}.json", brief)
         write_json(staging / "briefing" / "index.json", briefing.update_index(index, brief), pretty=True)

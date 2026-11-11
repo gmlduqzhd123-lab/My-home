@@ -132,6 +132,21 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(self.read("stats/summary.json")["months"][0]["median"], 31300)
         self.assertFalse(list(self.tmp.rglob(".staging-*")))
 
+    def test_land_codes_cached_per_complex(self):
+        self.run_at(NOW1)
+        codes = json.loads((self.cache / "complex-codes.json").read_text(encoding="utf-8"))
+        cid = self.read("complexes.json")["complexes"][0]["id"]
+        self.assertEqual(codes[cid], {"sigunguCd": "12150", "bjdongCd": "10300", "bun": "0100", "ji": "0000", "landCd": "1"})
+
+    def test_optional_sources_fail_without_blocking(self):
+        self.assertEqual(self.run_at(NOW1), pipeline.EXIT_OK)
+        m = self.read("manifest.json")
+        status = {s["id"]: s["status"] for s in m["sources"]}
+        self.assertEqual((status["hub-permit"], status["building-register"]), ("failed", "failed"))
+        self.assertEqual((status["molit-stat"], status["kosis-population"]), ("pending", "pending"))  # 키가 없으면 시도하지 않는다
+        self.assertEqual(self.read("supply.json")["items"], [])
+        self.assertIsNone(self.read("complexes.json")["complexes"][0]["building"])
+
     def test_second_run_briefs_only_changes(self):
         self.run_at(NOW1)
         self.api.data["2026-11"].append(item(m=11, d=7, amount="33,300"))

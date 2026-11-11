@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardBody, CardHeader, Field, PageTitle, Segmented, Select } from '@/components/ui/primitives'
 import { NotAvailable, PendingState, ResourceView } from '@/components/ui/states'
 import { areaOptions, buildCompareRow, compareWarnings, type AreaMode, type CompareRow } from '@/lib/compare'
+import { complexFacts } from '@/lib/facts'
 import { loadComplexTrades, useComplexes, useManifest, useResource } from '@/lib/data'
 import { formatDate, formatFloor, formatPrice, formatYm, shiftYm, ymRange } from '@/lib/format'
 import { MAX_COMPARE, usePrefs } from '@/store/prefs'
@@ -50,7 +51,10 @@ function Table({ rows }: { rows: CompareRow[] }) {
         <tbody>
           {line('위치', (r) => r.complex.address)}
           {line('준공연도', (r) => (r.complex.buildYear ? `${r.complex.buildYear}년` : null))}
-          {line('세대수', (r) => (r.complex.kapt?.households != null ? `${r.complex.kapt.households.toLocaleString('ko-KR')}세대` : null))}
+          {line('세대수', (r) => {
+            const n = complexFacts(r.complex).households
+            return n != null ? `${n.toLocaleString('ko-KR')}세대` : null
+          })}
           {line('비교 전용면적', (r) => (r.area != null ? `${r.area}㎡` : <span className="text-[12px] font-normal text-muted">기간 내 거래 없음</span>))}
           {line('거래 건수', (r) => `${r.summary.count}건`, '해제 제외')}
           {line('기간 중위 거래금액', (r) => (r.summary.median != null ? formatPrice(r.summary.median) : <span className="text-[12px] font-normal text-muted">거래 없음</span>))}
@@ -67,7 +71,14 @@ function Table({ rows }: { rows: CompareRow[] }) {
             ),
           )}
           {line('최고 / 최저', (r) => (r.summary.max && r.summary.min ? `${formatPrice(r.summary.max.price)} / ${formatPrice(r.summary.min.price)}` : null))}
-          {line('주차대수', (r) => (r.complex.kapt?.parkingTotal != null ? `${r.complex.kapt.parkingTotal.toLocaleString('ko-KR')}대` : null))}
+          {line('주차대수', (r) => {
+            const n = complexFacts(r.complex).parking
+            return n != null ? `${n.toLocaleString('ko-KR')}대` : null
+          })}
+          {line('용적률', (r) => {
+            const n = complexFacts(r.complex).floorAreaRatio
+            return n != null ? `${n}%` : null
+          })}
           {line('난방방식', (r) => r.complex.kapt?.heating ?? null)}
           {line('관리비', () => null, '미연계')}
           {line('교육·편의시설', (r) => {

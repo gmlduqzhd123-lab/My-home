@@ -12,6 +12,7 @@ import { Badge, Card, CardBody, CardHeader, Segmented } from '@/components/ui/pr
 import { EmptyState, NotAvailable, PendingState, ResourceView } from '@/components/ui/states'
 import { loadComplexRents, useComplexes, useComplexTrades, useManifest, useResource } from '@/lib/data'
 import { isCorp, isDirect } from '@/lib/filters'
+import { complexFacts } from '@/lib/facts'
 import { formatDate, formatDateTime, formatPrice, ymRange } from '@/lib/format'
 import { areaGroup, byAreaGroup, compareDateDesc, monthlyAggregate, summarize } from '@/lib/stats'
 import type { Complex, Manifest, Trade } from '@/types'
@@ -51,6 +52,7 @@ function Detail({ c, trades, manifest }: { c: Complex; trades: Trade[]; manifest
   }, [manifest])
   const monthly = useMemo(() => monthlyAggregate(scoped, yms), [scoped, yms])
   const k = c.kapt
+  const facts = complexFacts(c)
 
   return (
     <div className="space-y-4">
@@ -76,18 +78,23 @@ function Detail({ c, trades, manifest }: { c: Complex; trades: Trade[]; manifest
       <Card>
         <CardHeader
           title="단지 정보"
-          desc={k ? `공동주택 기본정보(K-apt) 조회 ${formatDateTime(k.fetchedAt)}` : '공동주택 기본정보(K-apt)가 연결되지 않은 단지입니다'}
+          desc={facts.basis ? `출처: ${facts.basis}` : '공동주택 기본정보(K-apt)·건축물대장이 연결되지 않은 단지입니다'}
         />
         <CardBody>
           <dl className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
             <Info label="준공연도" value={c.buildYear ? `${c.buildYear}년` : null} />
-            <Info label="사용승인일" value={k?.useDate ? formatDate(k.useDate) : null} />
-            <Info label="총세대수" value={k?.households != null ? `${k.households.toLocaleString('ko-KR')}세대` : null} />
-            <Info label="동수" value={k?.dongCount != null ? `${k.dongCount}개 동` : null} />
-            <Info label="최고층" value={k?.topFloor != null ? `${k.topFloor}층` : null} />
+            <Info label="사용승인일" value={facts.useDate ? formatDate(facts.useDate) : null} />
+            <Info label="총세대수" value={facts.households != null ? `${facts.households.toLocaleString('ko-KR')}세대` : null} />
+            <Info label="동수" value={facts.dongCount != null ? `${facts.dongCount}개 동` : null} />
+            <Info
+              label="최고층"
+              value={facts.topFloor != null ? `${facts.topFloor}층${facts.basementFloors ? ` (지하 ${facts.basementFloors}층)` : ''}` : null}
+            />
+            <Info label="건폐율" value={facts.coverageRatio != null ? `${facts.coverageRatio}%` : null} />
+            <Info label="용적률" value={facts.floorAreaRatio != null ? `${facts.floorAreaRatio}%` : null} />
             <Info label="난방방식" value={k?.heating} />
             <Info label="복도유형" value={k?.hallType} />
-            <Info label="주차대수" value={k?.parkingTotal != null ? `${k.parkingTotal.toLocaleString('ko-KR')}대` : null} />
+            <Info label="주차대수" value={facts.parking != null ? `${facts.parking.toLocaleString('ko-KR')}대` : null} />
             <Info label="시공사" value={k?.builder} />
             <Info label="버스정류장까지" value={k?.busTime} />
           </dl>
@@ -95,7 +102,7 @@ function Detail({ c, trades, manifest }: { c: Complex; trades: Trade[]; manifest
             <Info label="부대·복리시설" value={k?.welfare} />
             <Info label="편의시설" value={k?.convenient} />
           </dl>
-          <p className="mt-2 text-[12px] text-muted">준공연도는 실거래 자료의 건축년도, 그 밖의 항목은 K-apt 공동주택 기본정보에서 가져옵니다. 관리비는 연계하지 않았습니다.</p>
+          <p className="mt-2 text-[12px] text-muted">준공연도는 실거래 자료의 건축년도입니다. 그 밖의 항목은 K-apt 공동주택 기본정보를 먼저 쓰고, 없으면 건축물대장 값으로 채웁니다. 건폐율·용적률은 건축물대장 값입니다. 관리비는 연계하지 않았습니다.</p>
         </CardBody>
       </Card>
 

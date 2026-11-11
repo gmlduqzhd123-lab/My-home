@@ -60,6 +60,10 @@ jobs:
           APPLYHOME_API_KEY: ${{ secrets.APPLYHOME_API_KEY }}
           SCHOOL_API_KEY: ${{ secrets.SCHOOL_API_KEY }}
           LH_API_KEY: ${{ secrets.LH_API_KEY }}
+          BUILDING_HUB_API_KEY: ${{ secrets.BUILDING_HUB_API_KEY }}
+          BUILDING_REGISTER_API_KEY: ${{ secrets.BUILDING_REGISTER_API_KEY }}
+          MOLIT_STAT_API_KEY: ${{ secrets.MOLIT_STAT_API_KEY }}
+          KOSIS_API_KEY: ${{ secrets.KOSIS_API_KEY }}
           REB_API_KEY: ${{ secrets.REB_API_KEY }}
           KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
           MONTHS: ${{ inputs.months }}
@@ -99,6 +103,10 @@ jobs:
           APPLYHOME_API_KEY: ${{ secrets.APPLYHOME_API_KEY }}
           SCHOOL_API_KEY: ${{ secrets.SCHOOL_API_KEY }}
           LH_API_KEY: ${{ secrets.LH_API_KEY }}
+          BUILDING_HUB_API_KEY: ${{ secrets.BUILDING_HUB_API_KEY }}
+          BUILDING_REGISTER_API_KEY: ${{ secrets.BUILDING_REGISTER_API_KEY }}
+          MOLIT_STAT_API_KEY: ${{ secrets.MOLIT_STAT_API_KEY }}
+          KOSIS_API_KEY: ${{ secrets.KOSIS_API_KEY }}
           REB_API_KEY: ${{ secrets.REB_API_KEY }}
           KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
         run: |

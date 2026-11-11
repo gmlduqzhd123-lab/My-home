@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from collector import config, pipeline  # noqa: E402
+from collector import config, pipeline, supply  # noqa: E402
 from collector.store import read_json, write_json  # noqa: E402
 
 OUT = config.ROOT / "tests" / "fixtures" / "data"
@@ -37,6 +37,8 @@ COMPLEXES = [
     ("[가상] 덕암한울", "덕암동", "9012", 1996, [(59.4, 10500), (84.4, 14000)], (34.9408, 127.4958)),
 ]
 COORDS = {f"순천시 {c[1]} {c[2]}": c[5] for c in COMPLEXES}
+# 가상 법정동 코드(뒤 5자리)
+FIX_DONG = {n: f"{10100 + i * 100}" for i, n in enumerate(sorted({c[1] for c in COMPLEXES}))}
 # 수집 기간에 거래가 없어 K-apt 단지 목록으로만 확인되는 가상 단지 (단지명, 읍면동, 리, 도로명주소, 좌표)
 KAPT_ONLY = [
     ("[가상] 매곡고요", "매곡동", "", "순천시 가상매곡길 11", (34.9611, 127.4802)),
@@ -85,6 +87,7 @@ def make_month(rng: random.Random, ym: str, idx: int, n_months: int) -> list[dic
                 "cdealType": "O" if cancelled else "", "cdealDay": f"{y % 100:02d}.{m:02d}.{min(day + 1, 28):02d}" if cancelled else "",
                 "rgstDate": "", "aptDong": "", "slerGbn": "개인", "buyerGbn": "개인",
                 "estateAgentSggNm": "순천시", "landLeaseholdGbn": "N", "roadNm": "",
+                "sggCd": "12150", "umdCd": FIX_DONG[umd], "bonbun": jibun.zfill(4), "bubun": "0000", "landCd": "1",
             })
     return items
 
@@ -122,6 +125,42 @@ def fake_get(url, params=None, **_):
                "PRZWNER_PRESNATN_DE": "2026-11-05", "CNTRCT_CNCLS_BGNDE": "2026-11-17", "CNTRCT_CNCLS_ENDDE": "2026-11-19",
                "MVN_PREARNGE_YM": "202903", "PBLANC_URL": "https://www.applyhome.co.kr/"}
         return json.dumps({"data": [row]}).encode()
+    if url == supply.BJDONG_ZIP_URL:
+        import io, zipfile
+        names = sorted({c[1] for c in COMPLEXES})
+        text = "법정동코드\t법정동명\t폐지여부\n" + "".join(f"12150{FIX_DONG[n]}\t전남광주통합특별시 순천시 {n}\t존재\n" for n in names)
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as z:
+            z.writestr("codes.txt", text.encode("cp949"))
+        return buf.getvalue()
+    if url == supply.HUB_PERMIT_URL:
+        rows = []
+        if params["bjdongCd"] == FIX_DONG["왕지동"]:
+            rows = [{"mgmHsrgstPk": "FIXP1", "platPlc": "전남광주통합특별시 순천시 왕지동 9100", "bldNm": "[가상] 왕지 새공급단지",
+                     "totHhldCnt": "684", "purpsCdNm": "공동주택", "apprvDay": "20260512", "stcnsDay": "20260901", "stcnsSchedDay": ""},
+                    {"mgmHsrgstPk": "FIXP2", "platPlc": "전남광주통합특별시 순천시 왕지동 9200", "bldNm": "[가상] 왕지 예정단지",
+                     "totHhldCnt": "312", "purpsCdNm": "공동주택", "apprvDay": "20260930", "stcnsDay": "", "stcnsSchedDay": "20270301"}]
+        return json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"items": {"item": rows} if rows else "", "totalCount": len(rows)}}}).encode()
+    if url in (supply.REGISTER_RECAP_URL, supply.REGISTER_TITLE_URL):
+        row = {"bun": params["bun"], "ji": params["ji"]}
+        if url == supply.REGISTER_RECAP_URL:
+            row.update({"hhldCnt": "596", "mainBldCnt": "7", "totPkngCnt": "742", "bcRat": "17.8", "vlRat": "219.5", "useAprDay": "20120420"})
+        else:
+            row.update({"mainPurpsCdNm": "공동주택", "grndFlrCnt": "18", "ugrndFlrCnt": "2", "hhldCnt": "85"})
+        return json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"items": {"item": row}, "totalCount": 1}}}).encode()
+    if url == supply.MOLIT_STAT_URL:
+        ym = params["start_dt"]
+        i = (int(ym[:4]) * 12 + int(ym[4:])) % 24
+        if params["form_id"] == "2082":
+            rows = [{"구분": "전남광주", "시군구": "순천시", "미분양현황": str(900 + i * 17), "date": ym}]
+        else:
+            rows = [{"시군구": "순천시", "부문": "계", "규모": "계", "호": str(120 + i * 3)}]
+        return json.dumps({"result_status": {"status_code": "INFO-000"}, "result_data": {"unitName": "호", "formList": rows}}).encode()
+    if url == supply.KOSIS_URL:
+        now = config.now_kst()
+        rows = [{"C1": "12150", "C1_NM": "순천시", "PRD_DE": ym.replace("-", ""), "DT": str(279000 - i * 45)}
+                for i, ym in enumerate(config.recent_yms(now, 60)[:-1])]
+        return json.dumps(rows).encode()
     if url == config.LH_NOTICE_URL:
         rows = [{"PAN_NM": "[가상] 순천 테스트지구 A-1블록 행복주택 입주자 모집공고", "UPP_AIS_TP_NM": "임대주택",
                  "AIS_TP_CD_NM": "행복주택", "CNP_CD_NM": "전남광주", "PAN_SS": "공고중", "PAN_NT_ST_DT": "2026.10.28",
@@ -183,7 +222,8 @@ def main() -> None:
     def fetch_rent_month(key, code, ym):
         return list(rents.get(ym, [])) if code == config.PRIMARY_LAWD else []
 
-    env = {"MOLIT_API_KEY": "fixture", "KAKAO_REST_API_KEY": "fixture", "REB_API_KEY": "fixture"}
+    env = {"MOLIT_API_KEY": "fixture", "KAKAO_REST_API_KEY": "fixture", "REB_API_KEY": "fixture",
+           "MOLIT_STAT_API_KEY": "fixture", "KOSIS_API_KEY": "fixture"}
     quiet = lambda s: None  # noqa: E731
     assert pipeline.run(now=yesterday, data_dir=OUT, cache_dir=CACHE, env=env, fetch_month=fetch_month, fetch_rent_month=fetch_rent_month, get=fake_get, log=quiet) == 0
     state["today"] = True

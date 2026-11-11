@@ -8,13 +8,16 @@ import type {
   DevelopmentsFile,
   Manifest,
   MonthFile,
+  PopulationFile,
   PresalesFile,
   PriceIndexFile,
   Rent,
   RentMonthFile,
   SchoolsFile,
   SummaryFile,
+  SupplyFile,
   Trade,
+  UnsoldFile,
 } from '@/types'
 
 export type DataErrorKind = 'not_found' | 'network' | 'invalid'
@@ -92,6 +95,9 @@ export const loadPresales = () => loadJson<PresalesFile>('presales.json')
 export const loadDevelopments = () => loadJson<DevelopmentsFile>('developments.json')
 export const loadSchools = () => loadJson<SchoolsFile>('schools.json')
 export const loadPriceIndex = () => loadJson<PriceIndexFile>('stats/price-index.json')
+export const loadSupply = () => loadJson<SupplyFile>('supply.json')
+export const loadUnsold = () => loadJson<UnsoldFile>('stats/unsold.json')
+export const loadPopulation = () => loadJson<PopulationFile>('stats/population.json')
 
 /** 필요한 달만 병렬 로드 */
 export async function loadMonths(yms: string[]): Promise<Trade[]> {

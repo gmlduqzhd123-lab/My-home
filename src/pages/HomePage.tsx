@@ -1,14 +1,25 @@
 import { ArrowRight, Building2, MapPin, Newspaper } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { IndexChart, MedianVolumeChart } from '@/components/charts'
+import { IndexChart, MedianVolumeChart, PopulationChart, UnsoldChart } from '@/components/charts'
 import { SupplyNotices } from '@/components/SupplyNotices'
 import { TradeTable } from '@/components/TradeTable'
 import { Button } from '@/components/ui/button'
 import { Badge, Card, CardBody, CardHeader, Skeleton } from '@/components/ui/primitives'
 import { EmptyState, NotAvailable, PendingState, ResourceView } from '@/components/ui/states'
 import { ZONES } from '@/config/zones'
-import { freshness, loadBriefing, loadPresales, loadPriceIndex, useComplexes, useManifest, useResource, useSummary } from '@/lib/data'
+import {
+  freshness,
+  loadBriefing,
+  loadPopulation,
+  loadPresales,
+  loadPriceIndex,
+  loadUnsold,
+  useComplexes,
+  useManifest,
+  useResource,
+  useSummary,
+} from '@/lib/data'
 import { formatCount, formatDate, formatDateTime, formatPrice, formatYm } from '@/lib/format'
 import { usePrefs } from '@/store/prefs'
 import type { Briefing, Complex, Manifest, SummaryFile } from '@/types'
@@ -118,6 +129,10 @@ export default function HomePage() {
   const briefing = useResource('briefing', loadBriefing)
   const presales = useResource('presales', loadPresales)
   const priceIndex = useResource('price-index', loadPriceIndex)
+  const unsold = useResource('unsold', loadUnsold)
+  const population = useResource('population', loadPopulation)
+  const unsoldOk = unsold.status === 'ok' && unsold.data.status === 'ok' && unsold.data.items.length > 1
+  const populationOk = population.status === 'ok' && population.data.status === 'ok' && population.data.items.length > 1
   const setZone = usePrefs((s) => s.setZone)
   const navigate = useNavigate()
 
@@ -211,6 +226,27 @@ export default function HomePage() {
             </p>
           </CardBody>
         </Card>
+      )}
+
+      {(unsoldOk || populationOk) && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {unsoldOk && unsold.status === 'ok' && (
+            <Card>
+              <CardHeader title="순천시 미분양 주택" desc={`국토교통 통계누리 · 조회 ${formatDateTime(unsold.data.fetchedAt)}`} />
+              <CardBody>
+                <UnsoldChart items={unsold.data.items.slice(-24)} />
+              </CardBody>
+            </Card>
+          )}
+          {populationOk && population.status === 'ok' && (
+            <Card>
+              <CardHeader title="순천시 주민등록 인구" desc={`통계청 KOSIS · 조회 ${formatDateTime(population.data.fetchedAt)}`} />
+              <CardBody>
+                <PopulationChart items={population.data.items} />
+              </CardBody>
+            </Card>
+          )}
+        </div>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">

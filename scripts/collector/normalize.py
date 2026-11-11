@@ -171,6 +171,22 @@ def normalize_rent(raw: dict[str, str]) -> dict:
     }
 
 
+def land_codes(raw: dict[str, str]) -> tuple[str, dict] | None:
+    """실거래 item 에서 (단지 id, 법정동·지번 코드)를 뽑는다. 건축물대장 등 지번 기준 조회에 쓴다.
+
+    sggCd(5)+umdCd(5)=법정동코드 10자리, bonbun/bubun=본번/부번(4자리), landCd=대지구분.
+    필요한 값이 숫자가 아니면 None.
+    """
+    apt_nm, umd_nm = clean(raw.get("aptNm")), clean(raw.get("umdNm"))
+    sgg, umd = (raw.get("sggCd") or "").strip(), (raw.get("umdCd") or "").strip()
+    bon, bu = (raw.get("bonbun") or "").strip(), (raw.get("bubun") or "").strip()
+    if not apt_nm or not umd_nm or not (sgg.isdigit() and len(sgg) == 5 and umd.isdigit() and len(umd) == 5 and bon.isdigit()):
+        return None
+    cid = complex_id(umd_nm, clean(raw.get("jibun")), normalize_name(apt_nm))
+    return cid, {"sigunguCd": sgg, "bjdongCd": umd, "bun": bon.zfill(4), "ji": (bu if bu.isdigit() else "0").zfill(4),
+                 "landCd": (raw.get("landCd") or "").strip() or None}
+
+
 def normalize_items(items: list[dict[str, str]], fn=None) -> tuple[list[dict], list[str]]:
     """여러 item 정규화. (정상 레코드, 거부 사유 목록) 반환. fn 기본값은 매매(normalize_trade)."""
     fn = fn or normalize_trade
