@@ -27,9 +27,11 @@ for (const u of refs) {
   if (expected === './') {
     if (u.startsWith('/')) fail(`상대 경로 빌드인데 절대 경로 참조가 있습니다: ${u}`)
     rel = u.replace(/^\.\//, '')
-  } else {
-    if (!u.startsWith(expected)) fail(`base(${expected})로 시작하지 않는 참조: ${u}`)
+  } else if (u.startsWith('/')) {
+    if (!u.startsWith(expected)) fail(`base(${expected})로 시작하지 않는 절대 경로 참조: ${u}`)
     rel = u.slice(expected.length)
+  } else {
+    rel = u.replace(/^\.\//, '') // 상대 경로는 index.html 위치 기준이라 어떤 base 에서도 유효
   }
   if (!fs.existsSync(path.join(dist, rel.split('?')[0]))) fail(`참조된 파일이 없습니다: ${u}`)
 }
