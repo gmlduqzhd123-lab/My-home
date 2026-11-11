@@ -35,12 +35,12 @@ function TradeBadges({ t }: { t: Trade }) {
 function PrevCell({ cmp }: { cmp: PrevComparison | null }) {
   if (!cmp) return <span className="text-[12px] text-muted">비교 거래 없음</span>
   return (
-    <span className="inline-flex flex-col items-end">
-      <Delta diff={cmp.diff} pct={cmp.pct} />
-      <span className="num text-[11px] text-muted">
-        {formatDate(cmp.prev.dealDate)} · {formatFloor(cmp.prev.floor)}
+    <span className="inline-flex items-baseline justify-end gap-2 whitespace-nowrap">
+      <span className="mono text-[11px] text-muted">
+        {formatDate(cmp.prev.dealDate).slice(2)} · {formatFloor(cmp.prev.floor)}
         {cmp.floorDiffers && ' (층 다름)'}
       </span>
+      <Delta diff={cmp.diff} pct={cmp.pct} className="mono" />
     </span>
   )
 }
@@ -81,43 +81,43 @@ export function TradeTable({
     <div>
       {/* 표 (md 이상) */}
       <div className="hidden overflow-x-auto md:block" tabIndex={0} role="group" aria-label="가로로 스크롤할 수 있는 표">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[820px] text-[13px]">
           <caption className="sr-only">아파트 매매 실거래 목록</caption>
           <thead>
-            <tr className="border-b border-line text-left text-[12px] text-muted">
-              <th scope="col" className="px-4 py-2.5 font-semibold">계약일</th>
-              {showComplex && <th scope="col" className="px-2 py-2.5 font-semibold">단지 · 법정동</th>}
-              <th scope="col" className="px-2 py-2.5 text-right font-semibold">전용면적</th>
-              <th scope="col" className="px-2 py-2.5 text-right font-semibold">층</th>
-              <th scope="col" className="px-2 py-2.5 text-right font-semibold">거래금액</th>
-              {history && <th scope="col" className="px-2 py-2.5 text-right font-semibold">{historyLabel}</th>}
-              <th scope="col" className="px-4 py-2.5 font-semibold">구분</th>
+            <tr className="bg-surface-2 text-left text-[11px] text-muted">
+              <th scope="col" className="px-4 py-1.5 font-semibold">계약일</th>
+              {showComplex && <th scope="col" className="px-2 py-1.5 font-semibold">단지 · 법정동</th>}
+              <th scope="col" className="px-2 py-1.5 text-right font-semibold">전용면적</th>
+              <th scope="col" className="px-2 py-1.5 text-right font-semibold">층</th>
+              <th scope="col" className="px-2 py-1.5 text-right font-semibold">거래금액</th>
+              {history && <th scope="col" className="px-2 py-1.5 text-right font-semibold">{historyLabel}</th>}
+              <th scope="col" className="px-4 py-1.5 font-semibold">구분</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((t) => (
-              <tr key={t.id} className="border-b border-line/70 last:border-0 hover:bg-surface-2/60">
-                <td className="num px-4 py-2.5 whitespace-nowrap text-ink">{formatDate(t.dealDate)}</td>
+              <tr key={t.id} className="border-b border-line/60 last:border-0 hover:bg-accent-soft/50">
+                <td className="mono px-4 py-1.5 whitespace-nowrap text-ink">{formatDate(t.dealDate)}</td>
                 {showComplex && (
-                  <td className="px-2 py-2.5">
+                  <td className="px-2 py-1.5">
                     <Link to={`/complex/${t.complexId}`} className="font-semibold text-ink hover:text-accent-ink hover:underline">
                       {t.aptNm}
                     </Link>
                     <span className="ml-1.5 text-[12px] text-muted">{t.umdNm}</span>
                   </td>
                 )}
-                <td className="num px-2 py-2.5 text-right whitespace-nowrap">
+                <td className="mono px-2 py-1.5 text-right whitespace-nowrap">
                   {formatArea(t.area)}
                   <span className="ml-1 text-[11px] text-muted">({toPyeong(t.area)}평)</span>
                 </td>
-                <td className="num px-2 py-2.5 text-right whitespace-nowrap">{formatFloor(t.floor)}</td>
-                <td className={cn('num px-2 py-2.5 text-right font-bold whitespace-nowrap', dim(t))}>{formatPrice(t.price)}</td>
+                <td className="mono px-2 py-1.5 text-right whitespace-nowrap">{formatFloor(t.floor)}</td>
+                <td className={cn('mono px-2 py-1.5 text-right font-bold whitespace-nowrap', dim(t))}>{formatPrice(t.price)}</td>
                 {history && (
-                  <td className="px-2 py-2.5 text-right">
+                  <td className="px-2 py-1.5 text-right">
                     <PrevCell cmp={cmpOf(t)} />
                   </td>
                 )}
-                <td className="px-4 py-2.5">
+                <td className="px-4 py-1.5">
                   <span className="flex flex-wrap gap-1">
                     <TradeBadges t={t} />
                   </span>

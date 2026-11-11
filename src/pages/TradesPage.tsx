@@ -46,7 +46,7 @@ function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: Re
   return (
     <div className="rounded-xl bg-surface-2 px-3.5 py-3">
       <p className="text-[12px] font-semibold text-muted">{label}</p>
-      <p className="num mt-0.5 text-lg font-extrabold tracking-tight text-ink">{value}</p>
+      <p className="mono mt-0.5 text-lg font-bold text-ink">{value}</p>
       {sub && <p className="num mt-0.5 truncate text-[11px] text-muted">{sub}</p>}
     </div>
   )

@@ -48,7 +48,7 @@ export function HeaderSearch({ className }: { className?: string }) {
           submit()
         }}
       >
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-white/60" aria-hidden="true" />
+        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted" aria-hidden="true" />
         <input
           ref={inputRef}
           type="search"
@@ -81,7 +81,7 @@ export function HeaderSearch({ className }: { className?: string }) {
               setOpen(false)
             }
           }}
-          className="h-9 w-full rounded-lg border border-white/15 bg-white/10 pr-3 pl-8 text-sm text-white placeholder:text-white/55 focus:bg-white/15"
+          className="h-9 w-full rounded-xl border border-transparent bg-surface-2 pr-3 pl-8 text-sm text-ink placeholder:text-muted focus:border-line focus:bg-surface"
         />
       </form>
       {showList && (

@@ -49,39 +49,39 @@ export function RentTable({ rents, showComplex = true }: { rents: Rent[]; showCo
   return (
     <div>
       <div className="hidden overflow-x-auto md:block" tabIndex={0} role="group" aria-label="가로로 스크롤할 수 있는 표">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[720px] text-[13px]">
           <caption className="sr-only">아파트 전월세 실거래 목록</caption>
           <thead>
-            <tr className="border-b border-line text-left text-[12px] text-muted">
-              <th scope="col" className="px-4 py-2.5 font-semibold">계약일</th>
-              {showComplex && <th scope="col" className="px-2 py-2.5 font-semibold">단지 · 법정동</th>}
-              <th scope="col" className="px-2 py-2.5 text-right font-semibold">전용면적</th>
-              <th scope="col" className="px-2 py-2.5 text-right font-semibold">층</th>
-              <th scope="col" className="px-2 py-2.5 text-right font-semibold">보증금 / 월세</th>
-              <th scope="col" className="px-2 py-2.5 font-semibold">계약기간</th>
-              <th scope="col" className="px-4 py-2.5 font-semibold">구분</th>
+            <tr className="bg-surface-2 text-left text-[11px] text-muted">
+              <th scope="col" className="px-4 py-1.5 font-semibold">계약일</th>
+              {showComplex && <th scope="col" className="px-2 py-1.5 font-semibold">단지 · 법정동</th>}
+              <th scope="col" className="px-2 py-1.5 text-right font-semibold">전용면적</th>
+              <th scope="col" className="px-2 py-1.5 text-right font-semibold">층</th>
+              <th scope="col" className="px-2 py-1.5 text-right font-semibold">보증금 / 월세</th>
+              <th scope="col" className="px-2 py-1.5 font-semibold">계약기간</th>
+              <th scope="col" className="px-4 py-1.5 font-semibold">구분</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id} className="border-b border-line/70 last:border-0 hover:bg-surface-2/60">
-                <td className="num px-4 py-2.5 whitespace-nowrap">{formatDate(r.dealDate)}</td>
+              <tr key={r.id} className="border-b border-line/60 last:border-0 hover:bg-accent-soft/50">
+                <td className="mono px-4 py-1.5 whitespace-nowrap">{formatDate(r.dealDate)}</td>
                 {showComplex && (
-                  <td className="px-2 py-2.5">
+                  <td className="px-2 py-1.5">
                     <Link to={`/complex/${r.complexId}`} className="font-semibold text-ink hover:text-accent-ink hover:underline">
                       {r.aptNm}
                     </Link>
                     <span className="ml-1.5 text-[12px] text-muted">{r.umdNm}</span>
                   </td>
                 )}
-                <td className="num px-2 py-2.5 text-right whitespace-nowrap">{formatArea(r.area)}</td>
-                <td className="num px-2 py-2.5 text-right whitespace-nowrap">{formatFloor(r.floor)}</td>
-                <td className="num px-2 py-2.5 text-right whitespace-nowrap">
+                <td className="mono px-2 py-1.5 text-right whitespace-nowrap">{formatArea(r.area)}</td>
+                <td className="mono px-2 py-1.5 text-right whitespace-nowrap">{formatFloor(r.floor)}</td>
+                <td className="mono px-2 py-1.5 text-right whitespace-nowrap">
                   <Amount r={r} />
                   <Prev r={r} />
                 </td>
-                <td className="num px-2 py-2.5 text-[12px] whitespace-nowrap text-muted">{r.contractTerm ?? '-'}</td>
-                <td className="px-4 py-2.5">
+                <td className="mono px-2 py-1.5 text-[12px] whitespace-nowrap text-muted">{r.contractTerm ?? '-'}</td>
+                <td className="px-4 py-1.5">
                   <span className="flex flex-wrap gap-1">
                     <Tags r={r} />
                   </span>

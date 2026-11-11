@@ -3,12 +3,12 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --bg: #f7f9fc;
+  --bg: #f3f5f7;
   --surface: #ffffff;
-  --surface-2: #f0f3f8;
-  --ink: #192638;
-  --muted: #56657c;
-  --line: #e1e7f0;
+  --surface-2: #f3f5f7;
+  --ink: #191f28;
+  --muted: #566170;
+  --line: #e6e9ed;
   --main: #14233b;
   --accent: #00a88f;
   --accent-ink: #00786a;
@@ -19,7 +19,7 @@
   --down-soft: #e8f0fd;
   --warn: #8a5000;
   --warn-soft: #fff4dc;
-  --chart-grid: #e1e7f0;
+  --chart-grid: #eceef1;
   color-scheme: light;
 }
 
@@ -84,6 +84,13 @@ body {
 .num {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+}
+
+/* 촘촘한 표의 숫자: 고정폭 글꼴로 자릿수를 맞춘다 */
+.mono {
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', 'D2Coding', Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 :focus-visible {

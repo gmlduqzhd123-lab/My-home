@@ -1,7 +1,7 @@
 import { ArrowRight, Bell, Building2, MapPin, Newspaper } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { IndexChart, MedianVolumeChart, PopulationChart, UnsoldChart } from '@/components/charts'
+import { IndexChart, MedianVolumeChart, PopulationChart, Sparkline, UnsoldChart } from '@/components/charts'
 import { SupplyNotices } from '@/components/SupplyNotices'
 import { TradeTable } from '@/components/TradeTable'
 import { Button } from '@/components/ui/button'
@@ -25,45 +25,51 @@ import { formatCount, formatDate, formatDateTime, formatPrice, formatYm } from '
 import { usePrefs } from '@/store/prefs'
 import type { Briefing, Complex, Manifest, SummaryFile } from '@/types'
 
-function Kpi({ label, value, sub, loading }: { label: string; value: ReactNode; sub: ReactNode; loading?: boolean }) {
+function SubStat({ label, value, sub }: { label: string; value: ReactNode; sub: string }) {
   return (
-    <Card className="p-4">
-      <p className="text-[12px] font-semibold text-muted">{label}</p>
-      {loading ? <Skeleton className="mt-2 h-7 w-24" /> : <p className="num mt-1 text-[22px] font-extrabold tracking-tight text-ink">{value}</p>}
-      <p className="mt-1 text-[12px] leading-snug text-muted">{sub}</p>
-    </Card>
+    <div className="min-w-0">
+      <p className="text-[12px] text-muted">{label}</p>
+      <p className="num mt-0.5 text-lg font-bold tracking-tight text-ink">{value}</p>
+      <p className="mt-0.5 text-[11px] leading-snug text-muted">{sub}</p>
+    </div>
   )
 }
 
-function KpiRow({ manifest, summary }: { manifest: Manifest; summary: SummaryFile }) {
+/** 첫 화면의 핵심: 신고가 끝난 최근 달의 중위 거래금액을 가장 크게, 나머지는 작게 */
+function Hero({ manifest, summary }: { manifest: Manifest; summary: SummaryFile }) {
   const months = summary.months
   const last = months[months.length - 1]
   const prev = months[months.length - 2]
   const last12 = months.slice(-12)
   const total12 = last12.reduce((s, m) => s + m.count, 0)
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <Kpi
-        label={prev ? `${formatYm(prev.ym)} 계약 거래량` : '거래량'}
-        value={prev ? formatCount(prev.count) : '-'}
-        sub={prev ? `해제 ${prev.cancelled}건 제외 · 신고가 끝난 최근 달` : '자료 없음'}
-      />
-      <Kpi
-        label={prev ? `${formatYm(prev.ym)} 중위 거래금액` : '중위 거래금액'}
-        value={prev?.median != null ? formatPrice(prev.median) : '-'}
-        sub={prev ? `표본 ${prev.count}건 · 면적·단지 구분 없는 전체 중위값` : '자료 없음'}
-      />
-      <Kpi
-        label={last ? `${formatYm(last.ym)} 계약(집계 중)` : '이번 달'}
-        value={last ? formatCount(last.count) : '-'}
-        sub="신고 기한(계약 후 30일)이 남아 계속 늘어납니다"
-      />
-      <Kpi
-        label="최근 12개월 거래량"
-        value={formatCount(total12)}
-        sub={`${formatYm(last12[0].ym)}~${formatYm(last12[last12.length - 1].ym)} · 단지 ${manifest.totals.complexes.toLocaleString('ko-KR')}곳`}
-      />
-    </div>
+    <>
+      <p className="mt-3 text-[13px] text-muted">{prev ? `${formatYm(prev.ym)} 중위 거래금액` : '중위 거래금액'}</p>
+      <p className="num mt-1 text-[34px] leading-tight font-extrabold tracking-tight text-ink sm:text-[42px]">
+        {prev?.median != null ? formatPrice(prev.median) : '-'}
+        {prev?.median != null && <span className="text-[22px] font-bold sm:text-[26px]">원</span>}
+      </p>
+      <p className="mt-1 text-[13px] leading-relaxed text-muted">
+        {prev ? `표본 ${prev.count.toLocaleString('ko-KR')}건 · 해제 ${prev.cancelled}건 제외 · 면적·단지 구분 없는 전체 중위값` : '자료 없음'}
+      </p>
+      <div className="mt-3">
+        <Sparkline values={months.slice(-13, -1).map((m) => m.median)} />
+        <p className="num flex justify-between text-[11px] text-muted">
+          <span>{months.length > 1 ? formatYm(months.slice(-13, -1)[0].ym) : ''}</span>
+          <span>월 중위 거래금액 추이</span>
+          <span>{prev ? formatYm(prev.ym) : ''}</span>
+        </p>
+      </div>
+      <div className="mt-5 grid grid-cols-3 gap-4 border-t border-line pt-4">
+        <SubStat
+          label={prev ? `${formatYm(prev.ym)} 계약 거래량` : '거래량'}
+          value={prev ? formatCount(prev.count) : '-'}
+          sub="신고가 끝난 최근 달"
+        />
+        <SubStat label={last ? `${formatYm(last.ym)} 계약(집계 중)` : '이번 달'} value={last ? formatCount(last.count) : '-'} sub="신고 기한이 남아 늘어남" />
+        <SubStat label="최근 12개월 거래량" value={formatCount(total12)} sub={`단지 ${manifest.totals.complexes.toLocaleString('ko-KR')}곳`} />
+      </div>
+    </>
   )
 }
 
@@ -140,32 +146,42 @@ export default function HomePage() {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl bg-main px-5 py-5 text-white sm:px-6 sm:py-6">
-        <p className="text-[12px] font-semibold text-white/70">오늘의 순천 부동산</p>
-        <h1 className="mt-1 text-xl font-extrabold tracking-tight sm:text-2xl">순천의 모든 집, 모든 가격, 모든 변화를 한눈에.</h1>
-        <p className="num mt-2 text-[13px] text-white/75">
-          {mres.status === 'ok'
-            ? freshness(mres.data) === 'pending'
-              ? '공공데이터 연결 대기 중'
-              : `국토교통부 실거래가 공개 자료 · 최종 갱신 ${formatDateTime(mres.data.generatedAt)}`
-            : mres.status === 'error'
-              ? '데이터 상태를 확인하지 못했습니다'
-              : '데이터 상태 확인 중…'}
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
+      <section className="rounded-[20px] bg-surface px-5 py-6 sm:px-7 sm:py-7">
+        <h1 className="text-[13px] font-bold text-accent-ink">오늘의 순천 부동산</h1>
+        {ready && summary.status === 'ok' ? (
+          <Hero manifest={mres.data} summary={summary.data} />
+        ) : ready && summary.status !== 'error' ? (
+          <div role="status" aria-label="불러오는 중">
+            <Skeleton className="mt-4 h-10 w-56" />
+            <Skeleton className="mt-3 h-4 w-72 max-w-full" />
+            <Skeleton className="mt-4 h-16 w-full" />
+          </div>
+        ) : (
+          <p className="mt-2 text-xl leading-snug font-extrabold tracking-tight text-ink sm:text-2xl">순천의 모든 집, 모든 가격, 모든 변화를 한눈에.</p>
+        )}
+        <div className="mt-5 flex flex-wrap items-center gap-2">
           <Button asChild variant="primary">
             <Link to="/trades">실거래 조회</Link>
           </Button>
-          <Button asChild className="border-white/25 bg-white/10 text-white hover:bg-white/20">
+          <Button asChild>
             <Link to="/map">지도로 탐색</Link>
           </Button>
+          <p className="num ml-auto text-[12px] text-muted">
+            {mres.status === 'ok'
+              ? freshness(mres.data) === 'pending'
+                ? '공공데이터 연결 대기 중'
+                : `국토교통부 실거래가 공개 자료 · 최종 갱신 ${formatDateTime(mres.data.generatedAt)}`
+              : mres.status === 'error'
+                ? '데이터 상태를 확인하지 못했습니다'
+                : '데이터 상태 확인 중…'}
+          </p>
         </div>
       </section>
 
       {freshAlerts.length > 0 && (
         <Link
           to="/alerts"
-          className="flex items-center gap-2.5 rounded-2xl border border-accent/40 bg-accent-soft px-4 py-3 text-sm font-semibold text-ink hover:brightness-95"
+          className="flex items-center gap-2.5 rounded-[20px] bg-accent-soft px-5 py-3.5 text-sm font-semibold text-ink hover:brightness-95"
         >
           <Bell className="size-4 shrink-0 text-accent-ink" aria-hidden="true" />
           <span className="min-w-0 flex-1 truncate">
@@ -188,16 +204,6 @@ export default function HomePage() {
 
       {ready && (
         <>
-          {summary.status === 'ok' ? (
-            <KpiRow manifest={mres.data} summary={summary.data} />
-          ) : (
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {['거래량', '중위 거래금액', '이번 달', '최근 12개월'].map((l) => (
-                <Kpi key={l} label={l} value="" sub="불러오는 중" loading={summary.status !== 'error'} />
-              ))}
-            </div>
-          )}
-
           <Card>
             <CardHeader
               title="순천시 아파트 매매 실거래 현황"
@@ -310,7 +316,7 @@ export default function HomePage() {
                 setZone(z.id)
                 navigate('/trades')
               }}
-              className="flex h-10 cursor-pointer items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-sm font-semibold text-ink hover:border-accent hover:bg-accent-soft"
+              className="flex h-10 cursor-pointer items-center gap-1.5 rounded-full bg-surface-2 px-4 text-sm font-semibold text-ink hover:bg-accent-soft hover:text-accent-ink"
             >
               <MapPin className="size-3.5 text-accent-ink" aria-hidden="true" />
               {z.name}

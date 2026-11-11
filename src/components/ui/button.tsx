@@ -4,13 +4,13 @@ import type { ButtonHTMLAttributes } from 'react'
 import { cn } from '@/lib/cn'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer',
+  'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer',
   {
     variants: {
       variant: {
         primary: 'bg-accent-ink text-white hover:brightness-110 dark:text-main',
         dark: 'bg-main text-white hover:brightness-125 dark:bg-surface-2',
-        outline: 'border border-line bg-surface text-ink hover:bg-surface-2',
+        outline: 'bg-surface-2 text-ink hover:brightness-95 dark:hover:brightness-125',
         ghost: 'text-ink hover:bg-surface-2',
         soft: 'bg-accent-soft text-accent-ink hover:brightness-95',
         danger: 'border border-line bg-surface text-up hover:bg-up-soft',

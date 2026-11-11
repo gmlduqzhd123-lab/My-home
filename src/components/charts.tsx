@@ -44,6 +44,21 @@ function ChartFrame({ summary, height, children }: { summary: string; height: nu
   )
 }
 
+/** 축 없는 작은 추이선. 장식에 가까우므로 화면낭독기에는 숨기고, 값은 옆의 숫자로 전달한다. */
+export function Sparkline({ values, height = 72 }: { values: (number | null)[]; height?: number }) {
+  const data = values.map((v, i) => ({ i, v }))
+  return (
+    <div style={{ height }} aria-hidden="true">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart accessibilityLayer={false} data={data} margin={{ top: 8, right: 10, bottom: 8, left: 10 }}>
+          <YAxis hide domain={['dataMin', 'dataMax']} />
+          <Line dataKey="v" stroke="var(--accent)" strokeWidth={3} strokeLinecap="round" dot={false} connectNulls isAnimationActive={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
 /** 월별 거래량(막대) */
 export function VolumeChart({ points, height = 200 }: { points: MonthlyPoint[]; height?: number }) {
   const total = points.reduce((s, p) => s + p.count, 0)

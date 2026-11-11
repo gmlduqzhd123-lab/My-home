@@ -20,8 +20,8 @@ function Logo() {
         <path d="M32 13 12 30h6v20h10V38h8v12h10V30h6z" fill="#14233B" />
       </svg>
       <span className="leading-tight">
-        <span className="block text-[15px] font-extrabold tracking-tight text-white">순천집 ZIP</span>
-        <span className="hidden text-[11px] text-white/70 xl:block">순천 부동산의 모든 것</span>
+        <span className="block text-[15px] font-extrabold tracking-tight text-ink">순천집 ZIP</span>
+        <span className="hidden text-[11px] text-muted xl:block">순천 부동산의 모든 것</span>
       </span>
     </Link>
   )
@@ -36,7 +36,7 @@ function ZoneSelect({ className }: { className?: string }) {
       value={zoneId}
       onChange={(e) => setZone(e.target.value)}
       className={cn(
-        'h-9 cursor-pointer rounded-lg border border-white/20 bg-white/10 px-2 text-[13px] font-semibold text-white [&>option]:text-black',
+        'h-9 cursor-pointer rounded-xl border border-transparent bg-surface-2 px-2 text-[13px] font-semibold text-ink',
         className,
       )}
     >
@@ -68,7 +68,7 @@ function ThemeToggle() {
       onClick={() => setTheme(next)}
       title={`화면 테마: ${THEME_META[theme].label}`}
       aria-label={`화면 테마: ${THEME_META[theme].label}. 누르면 ${THEME_META[next].label}(으)로 변경`}
-      className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-white/85 hover:bg-white/10"
+      className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
     >
       <Icon className="size-[18px]" />
     </button>
@@ -81,11 +81,11 @@ function DataStamp({ manifest }: { manifest: Manifest | null }) {
   return (
     <Link
       to="/about"
-      className="hidden shrink-0 text-right text-[11px] leading-tight text-white/75 hover:text-white lg:block"
+      className="hidden shrink-0 text-right text-[11px] leading-tight text-muted hover:text-ink lg:block"
       title="데이터 출처와 갱신 정보 보기"
     >
       <span className="block">데이터 기준</span>
-      <span className="num block font-semibold text-white">
+      <span className="num block font-semibold text-ink">
         {f === 'pending' ? '연결 대기' : formatDateTime(manifest.generatedAt)}
       </span>
     </Link>
@@ -176,7 +176,7 @@ function AlertBell() {
     <Link
       to="/alerts"
       title="청약 알림"
-      className="relative flex size-9 items-center justify-center rounded-lg text-white/85 hover:bg-white/10"
+      className="relative flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink"
     >
       <Bell className="size-[18px]" aria-hidden="true" />
       {/* 보이는 숫자 배지는 장식으로 두고, 읽어 주는 이름은 문장으로 제공한다 */}
@@ -184,7 +184,7 @@ function AlertBell() {
       {n > 0 && (
         <span
           aria-hidden="true"
-          className="num absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#ffd166] px-1 text-[10px] font-extrabold text-[#14233b]"
+          className="num absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-up px-1 text-[10px] font-extrabold text-white"
         >
           {n > 9 ? '9+' : n}
         </span>
@@ -219,13 +219,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-surface focus:p-2">
         본문으로 건너뛰기
       </a>
-      <header className="sticky top-0 z-40 bg-main">
+      <header className="sticky top-0 z-40 border-b border-line bg-surface">
         <div className="flex h-14 items-center gap-2 px-3 sm:gap-3 sm:px-4">
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
             aria-label="전체 메뉴 열기"
-            className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-white hover:bg-white/10 lg:hidden"
+            className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-ink hover:bg-surface-2 lg:hidden"
           >
             <Menu className="size-5" />
           </button>
@@ -235,11 +235,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="ml-auto flex items-center gap-1">
             <Link
               to="/favorites"
-              className="hidden h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold text-white/90 hover:bg-white/10 md:flex"
+              className="hidden h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold text-ink hover:bg-surface-2 md:flex"
             >
               <Heart className="size-4" aria-hidden="true" />
               관심 단지
-              <span className="num rounded-full bg-white/15 px-1.5 text-[11px]">{favCount}</span>
+              <span className="num rounded-full bg-surface-2 px-1.5 text-[11px] text-muted">{favCount}</span>
             </Link>
             <AlertBell />
             <ThemeToggle />
@@ -251,7 +251,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {manifest && <StatusBanner manifest={manifest} />}
 
       <div className="flex flex-1">
-        <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-52 shrink-0 overflow-y-auto border-r border-line bg-surface p-3 lg:block">
+        <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-52 shrink-0 overflow-y-auto bg-surface p-3 lg:block">
           <nav aria-label="주 메뉴" className="space-y-1">
             {SIDE_NAV.map((item) => (
               <SideLink key={item.to} item={item} />
@@ -307,7 +307,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <X className="size-5" />
               </button>
             </div>
-            <div className="mb-3 rounded-xl bg-main p-2">
+            <div className="mb-3">
               <ZoneSelect className="w-full" />
             </div>
             <nav aria-label="전체 메뉴" className="flex-1 space-y-1 overflow-y-auto">
