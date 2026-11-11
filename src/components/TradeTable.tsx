@@ -22,6 +22,11 @@ function TradeBadges({ t }: { t: Trade }) {
         </Badge>
       )}
       {t.dealType === '직거래' && <Badge tone="neutral">직거래</Badge>}
+      {(t.buyer === '법인' || t.seller === '법인') && (
+        <Badge tone="neutral" title={`매도 ${t.seller ?? '-'} → 매수 ${t.buyer ?? '-'}`}>
+          법인
+        </Badge>
+      )}
       {t.landLease && <Badge tone="neutral">토지임대부</Badge>}
     </>
   )
@@ -75,7 +80,7 @@ export function TradeTable({
   return (
     <div>
       {/* 표 (md 이상) */}
-      <div className="hidden overflow-x-auto md:block">
+      <div className="hidden overflow-x-auto md:block" tabIndex={0} role="group" aria-label="가로로 스크롤할 수 있는 표">
         <table className="w-full min-w-[720px] text-sm">
           <caption className="sr-only">아파트 매매 실거래 목록</caption>
           <thead>

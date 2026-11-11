@@ -22,7 +22,11 @@ class Diff:
         self.restored += other.restored
 
 
-def merge_month(existing: list[dict], fetched: list[dict], now_iso: str) -> tuple[list[dict], Diff]:
+RENT_MUTABLE = ("contractType", "contractTerm", "useRenewal", "prevDeposit", "prevMonthly", "buildYear")
+
+
+def merge_month(existing: list[dict], fetched: list[dict], now_iso: str,
+                mutable: tuple[str, ...] = MUTABLE) -> tuple[list[dict], Diff]:
     """한 계약월의 병합.
 
     - 새 조회에 있는 거래: 기존 firstSeenAt 유지, 사후 변경 필드 갱신.
@@ -44,8 +48,8 @@ def merge_month(existing: list[dict], fetched: list[dict], now_iso: str) -> tupl
             rec = {**f, "firstSeenAt": now_iso, "missingSince": None}
             diff.new.append(rec)
         else:
-            rec = {**prev, **{k: f[k] for k in MUTABLE}, "missingSince": None}
-            if f["cancelled"] and not prev.get("cancelled"):
+            rec = {**prev, **{k: f[k] for k in mutable}, "missingSince": None}
+            if f.get("cancelled") and not prev.get("cancelled"):
                 diff.cancelled.append(rec)
             if prev.get("missingSince"):
                 diff.restored.append(rec)

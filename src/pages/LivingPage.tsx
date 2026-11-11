@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ComplexPicker } from '@/components/ComplexPicker'
 import { NearbyPlaces, OfficialSchoolLinks } from '@/components/NearbyPlaces'
+import { SchoolList } from '@/components/Schools'
 import { Badge, Card, CardBody, CardHeader, PageTitle } from '@/components/ui/primitives'
 import { PendingState, ResourceView } from '@/components/ui/states'
 import { useComplexes, useManifest } from '@/lib/data'
@@ -66,6 +67,11 @@ export default function LivingPage() {
       )}
 
       <Card>
+        <CardHeader title="순천시 학교 목록" desc="순천교육지원청 관할 초·중·고 (운영 중인 학교)" />
+        <SchoolList />
+      </Card>
+
+      <Card>
         <CardHeader title="연계 현황" />
         <CardBody>
           <ul className="space-y-2 text-[13px] leading-relaxed text-ink">
@@ -73,7 +79,7 @@ export default function LivingPage() {
               <Badge tone="accent">구현</Badge> 단지 좌표 주변의 학교·병원·약국·대형마트·편의점·공원·버스정류장 조회 (Kakao 장소 검색, 지도 키 필요)
             </li>
             <li>
-              <Badge tone="warn">미연계</Badge> 전국초중등학교위치표준데이터를 이용한 학교 목록 — 엔드포인트는 확인했으나 수집기를 아직 만들지 않았습니다.
+              <Badge tone="accent">구현</Badge> 학교 목록과 단지별 가까운 학교 (전국초중등학교위치표준데이터 — 활용신청 후 수집되면 표시)
             </li>
             <li>
               <Badge tone="warn">미연계</Badge> 통학구역 경계 — 공개 API 가 확인되지 않아 공식 사이트 링크로 안내합니다.

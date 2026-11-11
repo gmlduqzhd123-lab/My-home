@@ -15,3 +15,5 @@ Thumbs.db
 .staging-*
 tests/fixtures/data/
 tests/fixtures/cache/
+test-results/
+playwright-report/

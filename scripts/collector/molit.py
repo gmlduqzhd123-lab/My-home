@@ -41,6 +41,11 @@ def parse_response(xml_bytes: bytes) -> tuple[list[dict[str, str]], int]:
 Fetcher = Callable[[str, dict], bytes]
 
 
+def fetch_rent_month(service_key: str, lawd_cd: str, ym: str, **kw) -> list[dict[str, str]]:
+    """전월세 실거래 한 달치. 응답 구조(header/body/items/totalCount)는 매매와 같다."""
+    return fetch_month(service_key, lawd_cd, ym, url=config.MOLIT_RENT_URL, **kw)
+
+
 def _default_fetch(url: str, params: dict) -> bytes:
     return http_get(url, params, secrets=[str(params.get("serviceKey", ""))])
 
@@ -53,6 +58,7 @@ def fetch_month(
     fetch: Fetcher = _default_fetch,
     page_size: int = 1000,
     max_pages: int = 50,
+    url: str = config.MOLIT_TRADE_URL,
 ) -> list[dict[str, str]]:
     """한 시군구·한 계약월의 전체 거래 item. 페이지를 끝까지 읽고 totalCount 와 건수가 맞는지 검증한다."""
     key = normalize_service_key(service_key)
@@ -66,7 +72,10 @@ def fetch_month(
             "pageNo": page,
             "numOfRows": page_size,
         }
-        page_items, total = parse_response(fetch(config.MOLIT_TRADE_URL, params))
+        page_items, total = parse_response(fetch(url, params))
+        if page > 1 and page_items and page_items == items[: len(page_items)]:
+            # 페이지 파라미터를 무시하고 같은 내용을 다시 주는 서비스: 중복으로 넣지 않고 건수 불일치로 처리
+            break
         items.extend(page_items)
         if len(items) >= total or not page_items:
             break

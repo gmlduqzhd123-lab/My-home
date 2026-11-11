@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       months:
-        description: '재조회할 개월 수(비우면 첫 실행 24, 이후 12)'
+        description: '재조회할 개월 수(비우면 첫 실행 24, 이후 12). 과거 기간을 늘리려면 60 등으로 지정'
         required: false
         default: ''
       skip_collect:
@@ -23,6 +23,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  issues: write
 
 concurrency:
   group: pages
@@ -54,8 +55,11 @@ jobs:
         continue-on-error: true
         env:
           MOLIT_API_KEY: ${{ secrets.MOLIT_API_KEY }}
+          RENT_API_KEY: ${{ secrets.RENT_API_KEY }}
           KAPT_API_KEY: ${{ secrets.KAPT_API_KEY }}
           APPLYHOME_API_KEY: ${{ secrets.APPLYHOME_API_KEY }}
+          SCHOOL_API_KEY: ${{ secrets.SCHOOL_API_KEY }}
+          REB_API_KEY: ${{ secrets.REB_API_KEY }}
           KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
           MONTHS: ${{ inputs.months }}
         run: |
@@ -89,15 +93,18 @@ jobs:
       - name: 배포 경로 · API 키 노출 점검
         env:
           MOLIT_API_KEY: ${{ secrets.MOLIT_API_KEY }}
+          RENT_API_KEY: ${{ secrets.RENT_API_KEY }}
           KAPT_API_KEY: ${{ secrets.KAPT_API_KEY }}
           APPLYHOME_API_KEY: ${{ secrets.APPLYHOME_API_KEY }}
+          SCHOOL_API_KEY: ${{ secrets.SCHOOL_API_KEY }}
+          REB_API_KEY: ${{ secrets.REB_API_KEY }}
           KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
         run: |
           npm run check:pages
           npm run check:secrets
 
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
@@ -109,14 +116,31 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   collect-status:
-    # 배포는 끝내되, 수집이 실패한 날은 실행 결과를 실패로 남겨 알림을 받는다.
+    # 배포는 끝내되, 수집이 실패한 날은 이슈로 알리고 실행 결과를 실패로 남긴다.
     needs: [build, deploy]
     if: always() && needs.build.outputs.collect == 'failure'
     runs-on: ubuntu-latest
     steps:
+      - name: 수집 실패 알림(이슈)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="공공데이터 수집 실패"
+          body="$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M') KST 수집에 실패했습니다. 사이트는 마지막 정상 데이터로 배포되었습니다.
+
+          실행 기록: $RUN_URL
+
+          인증키 만료, 활용신청 상태, 공공데이터포털 장애 여부를 확인해 주세요. 다음 수집이 성공하면 이 이슈를 닫아도 됩니다."
+          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          fi
       - run: |
           echo "::error::공공데이터 수집에 실패했습니다. 사이트는 마지막 정상 데이터로 배포되었습니다."
           exit 1

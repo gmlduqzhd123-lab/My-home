@@ -31,7 +31,12 @@ export interface Manifest {
   lastAttemptStatus: 'ok' | 'partial' | 'failed' | null
   lastAttemptMessage: string | null
   months: ManifestMonth[]
-  totals: { trades: number; cancelled: number; complexes: number; geocoded: number }
+  /** 전월세가 수집된 달(해제 개념 없음) */
+  rentMonths?: { ym: string; count: number; fetchedAt: string }[]
+  rentMessage?: string | null
+  /** 마지막 실행에서 법정동 시군구코드별로 받은 매매 건수 */
+  lawdCounts?: Record<string, number>
+  totals: { trades: number; cancelled: number; complexes: number; geocoded: number; rents?: number }
   sources: DataSource[]
 }
 
@@ -59,6 +64,42 @@ export interface Trade {
   firstSeenAt: string // 수집기가 이 거래를 처음 확인한 시각
   /** 최근 조회에서 더 이상 확인되지 않은 시각(정정 등). 해제와는 다르며 통계에서 제외한다. */
   missingSince?: string | null
+}
+
+/** 전월세 실거래. monthly 가 0 이면 전세 */
+export interface Rent {
+  id: string
+  complexId: string
+  aptNm: string
+  umdNm: string
+  jibun: string | null
+  dealDate: string
+  deposit: number // 보증금(만원)
+  monthly: number // 월세(만원)
+  area: number
+  floor: number | null
+  buildYear: number | null
+  contractType: string | null // 신규 / 갱신
+  contractTerm: string | null
+  useRenewal: boolean | null // 갱신요구권 사용 여부
+  prevDeposit: number | null
+  prevMonthly: number | null
+  firstSeenAt: string
+  missingSince?: string | null
+}
+
+export interface RentMonthFile {
+  ym: string
+  fetchedAt: string
+  source: string
+  rents: Rent[]
+}
+
+export interface ComplexRentFile {
+  complexId: string
+  generatedAt: string
+  source: string
+  rents: Rent[]
 }
 
 export interface MonthFile {
@@ -110,6 +151,8 @@ export interface Complex {
   lastPrice: number | null
   lastArea: number | null
   lastFloor: number | null
+  /** 수집 기간 내 전월세 거래 수(전월세 미연결이면 없음) */
+  rentCount?: number
   kapt: KaptInfo | null
 }
 
@@ -177,7 +220,7 @@ export interface PresaleItem {
   moveInMonth: string | null
   url: string | null
   /** 주택형별 최고 분양가(만원). 공고에 없으면 빈 배열 */
-  prices: { type: string; price: number }[]
+  prices: { type: string; price: number; supplyArea?: string | null; households?: number }[]
 }
 
 export interface PresalesFile {
@@ -186,6 +229,16 @@ export interface PresalesFile {
   message: string | null
   source: { name: string; url: string }
   items: PresaleItem[]
+}
+
+/** 한국부동산원 (월) 아파트 매매가격지수 — 순천시 */
+export interface PriceIndexFile {
+  status: 'ok' | 'pending' | 'failed'
+  fetchedAt: string | null
+  message: string | null
+  region: string
+  source: { name: string; url: string }
+  items: { ym: string; value: number }[]
 }
 
 export interface DevelopmentsFile {

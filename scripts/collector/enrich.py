@@ -47,9 +47,13 @@ def geocode_complexes(complexes: list[dict], cache: dict, rest_key: str, now: da
         entry = cache.get(c["id"])
         if entry and (entry.get("lat") is not None or not _stale(entry.get("at"), now, 30)):
             continue
-        if not c.get("jibun"):
+        # 실거래 단지는 지번 주소, 거래 없는 K-apt 단지는 도로명(없으면 법정동) 주소로 찾는다
+        if c.get("jibun"):
+            query = f"순천시 {c['umdNm']} {c['jibun']}"
+        elif c["id"].startswith("k") and (c.get("roadAddress") or c.get("address")):
+            query = c.get("roadAddress") or c["address"]
+        else:
             continue
-        query = f"순천시 {c['umdNm']} {c['jibun']}"
         data = _json(get(config.KAKAO_ADDRESS_URL, {"query": query, "size": 1},
                          headers={"Authorization": f"KakaoAK {rest_key}"}, secrets=[rest_key]))
         docs = data.get("documents") or []
@@ -57,7 +61,7 @@ def geocode_complexes(complexes: list[dict], cache: dict, rest_key: str, now: da
         # 다른 시군의 동명 주소가 잡히는 것을 막는다
         if hit and "순천" in str(hit.get("address_name", "")):
             cache[c["id"]] = {"lat": round(float(hit["y"]), 6), "lng": round(float(hit["x"]), 6),
-                              "source": "Kakao 주소 검색(지번)", "query": query, "at": now.isoformat()}
+                              "source": "Kakao 주소 검색", "query": query, "at": now.isoformat()}
         else:
             cache[c["id"]] = {"lat": None, "lng": None, "source": None, "query": query, "at": now.isoformat()}
         done += 1
@@ -152,6 +156,11 @@ def update_kapt_cache(cache: dict, key: str, now: datetime, *, get: Get = http_g
             continue
         items[code] = fetch_kapt_info(key, code, now.isoformat(), get=get)
         done += 1
+    # 단지 목록의 읍면동(as3)·리(as4)를 법정동명으로 기록한다(실거래의 umdNm 과 같은 형태)
+    for row in listing:
+        code = _str(row.get("kaptCode"))
+        if code in items:
+            items[code]["umd"] = " ".join(x for x in (_str(row.get("as3")), _str(row.get("as4"))) if x) or None
     return cache
 
 
@@ -178,6 +187,13 @@ def match_kapt(complexes: list[dict], kapt_items: dict) -> dict:
                 "kaptCode", "roadAddress", "households", "dongCount", "topFloor", "useDate", "heating",
                 "hallType", "builder", "parkingTotal", "welfare", "convenient", "education", "busTime", "fetchedAt")}
     return out
+
+
+def unmatched_kapt(kapt_items: dict, kapt_by_complex: dict) -> list[dict]:
+    """실거래 단지와 연결되지 않은 K-apt 단지(수집 기간에 거래가 없던 단지). 이름·법정동이 확인된 것만."""
+    used = {v.get("kaptCode") for v in kapt_by_complex.values()}
+    return [e for code, e in sorted(kapt_items.items())
+            if code not in used and e.get("name") and e.get("umd") and e.get("kaptCode")]
 
 
 # ───────────────────────── 청약홈 ─────────────────────────
@@ -211,4 +227,98 @@ def fetch_presales(key: str, *, get: Get = http_get) -> list[dict]:
             "prices": [],  # 주택형별 분양가는 별도 오퍼레이션(미연계) — 모집공고에서 확인
         })
     out.sort(key=lambda p: p["announceDate"] or "", reverse=True)
+    for p in out[:20]:  # 최근 공고만 주택형별 분양가를 붙인다(실패하면 빈 목록 그대로)
+        try:
+            p["prices"] = fetch_presale_prices(key, p["id"].split("-")[0], get=get)
+        except ApiError:
+            pass
+    return out
+
+
+def fetch_presale_prices(key: str, house_manage_no: str, *, get: Get = http_get) -> list[dict]:
+    """주택형별 공급금액(분양최고금액, 만원). 금액이 숫자가 아닌 행은 넣지 않는다."""
+    data = _json(get(config.APPLYHOME_MDL_URL, {"page": 1, "perPage": 100, "returnType": "JSON",
+                                                "cond[HOUSE_MANAGE_NO::EQ]": house_manage_no, "serviceKey": key},
+                     secrets=[key]))
+    if "data" not in data:
+        raise ApiError(f"청약홈 API 오류: {data.get('msg') or '응답 형식 오류'}")
+    out = []
+    for r in data["data"]:
+        amount = str(r.get("LTTOT_TOP_AMOUNT") or "").replace(",", "").strip()
+        house_ty = _str(r.get("HOUSE_TY"))
+        if not house_ty or not amount.isdigit() or int(amount) <= 0:
+            continue
+        out.append({"type": house_ty, "price": int(amount), "supplyArea": _str(r.get("SUPLY_AR")),
+                    "households": (_int(r.get("SUPLY_HSHLDCO")) or 0) + (_int(r.get("SPSPLY_HSHLDCO")) or 0)})
+    return out
+
+
+# ───────────────────────── 한국부동산원 가격지수 ─────────────────────────
+
+def fetch_price_index(key: str, *, get: Get = http_get) -> list[dict]:
+    """(월) 아파트 매매가격지수 — 순천시. [{ym, value}] 오름차순."""
+    data = _json(get(config.REB_DATA_URL, {
+        "KEY": key, "Type": "json", "pIndex": 1, "pSize": 1000, "STATBL_ID": config.REB_INDEX_TABLE,
+        "DTACYCLE_CD": "MM", "CLS_ID": config.REB_INDEX_CLS, "ITM_ID": config.REB_INDEX_ITM}, secrets=[key]))
+    block = data.get("SttsApiTblData")
+    if not isinstance(block, list) or len(block) < 2:
+        result = data.get("RESULT") or {}
+        raise ApiError(f"R-ONE API 오류: {result.get('CODE', '')} {result.get('MESSAGE', '응답 형식 오류')}")
+    out = []
+    for r in block[1].get("row") or []:
+        ym = str(r.get("WRTTIME_IDTFR_ID") or "")
+        # 다른 지역·항목이 섞여 오면 버린다
+        if len(ym) != 6 or not ym.isdigit() or not str(r.get("CLS_FULLNM") or "").endswith("순천시"):
+            continue
+        try:
+            out.append({"ym": f"{ym[:4]}-{ym[4:]}", "value": round(float(r["DTA_VAL"]), 2)})
+        except (KeyError, TypeError, ValueError):
+            continue
+    if not out:
+        raise ApiError("R-ONE 응답에 순천시 지수가 없습니다.")
+    out.sort(key=lambda x: x["ym"])
+    return out
+
+
+# ───────────────────────── 학교 위치 ─────────────────────────
+
+def fetch_schools(key: str, *, get: Get = http_get) -> list[dict]:
+    """순천교육지원청 관할 초·중·고 위치. 서버 필터가 듣지 않아도 주소로 다시 걸러 순천시 학교만 남긴다."""
+    key = normalize_service_key(key)
+    rows: list[dict] = []
+    for page in range(1, 21):
+        data = _json(get(config.SCHOOL_URL, {"serviceKey": key, "pageNo": page, "numOfRows": 1000, "type": "json",
+                                             "edcSport": config.SCHOOL_EDC_SPORT}, secrets=[key]))
+        if "OpenAPI_ServiceResponse" in data:
+            msg = (data["OpenAPI_ServiceResponse"].get("cmmMsgHeader") or {}).get("returnAuthMsg", "인증 오류")
+            raise ApiError(f"학교 위치 API 오류: {msg}", auth=True)
+        d = data.get("response", data)
+        code = str((d.get("header") or {}).get("resultCode", ""))
+        if code == "03":  # NODATA
+            break
+        if code not in ("00", "0"):
+            raise ApiError(f"학교 위치 API 오류: resultCode={code or '없음'}")
+        items = (d.get("body") or {}).get("items") or []
+        if isinstance(items, dict):
+            items = items.get("item") or []
+        rows += items
+        if len(items) < 1000:
+            break
+    out, seen = [], set()
+    for r in rows:
+        addr = _str(r.get("rdnmadr")) or _str(r.get("lnmadr")) or ""
+        sid, name = _str(r.get("schoolId")), _str(r.get("schoolNm"))
+        if "순천시" not in addr or not sid or not name or sid in seen:
+            continue
+        if _str(r.get("operSttus")) not in (None, "운영"):
+            continue
+        seen.add(sid)
+        try:
+            lat, lng = round(float(r["latitude"]), 6), round(float(r["longitude"]), 6)
+            if not (33 <= lat <= 39 and 124 <= lng <= 132):
+                lat = lng = None
+        except (KeyError, TypeError, ValueError):
+            lat = lng = None
+        out.append({"id": sid, "name": name, "kind": _str(r.get("schoolSe")) or "학교", "address": addr, "lat": lat, "lng": lng})
+    out.sort(key=lambda s: (s["kind"], s["name"]))
     return out

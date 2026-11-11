@@ -13,7 +13,7 @@ import { BOTTOM_NAV, SIDE_NAV, type NavItem } from './nav'
 
 function Logo() {
   return (
-    <Link to="/" className="flex shrink-0 items-center gap-2" aria-label="순천집 ZIP 홈">
+    <Link to="/" className="flex shrink-0 items-center gap-2" title="홈으로">
       <svg viewBox="0 0 64 64" className="size-8" aria-hidden="true">
         <rect width="64" height="64" rx="14" fill="#00A88F" />
         <path d="M32 13 12 30h6v20h10V38h8v12h10V30h6z" fill="#14233B" />

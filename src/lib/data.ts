@@ -3,11 +3,15 @@ import type {
   Briefing,
   BriefingIndex,
   ComplexFile,
+  ComplexRentFile,
   ComplexesFile,
   DevelopmentsFile,
   Manifest,
   MonthFile,
   PresalesFile,
+  PriceIndexFile,
+  Rent,
+  RentMonthFile,
   SchoolsFile,
   SummaryFile,
   Trade,
@@ -70,12 +74,24 @@ export const loadSummary = () => loadJson<SummaryFile>('stats/summary.json')
 export const loadMonth = (ym: string) => loadJson<MonthFile>(`trades/${ym}.json`)
 export const loadComplexTrades = (id: string) =>
   loadJson<ComplexFile>(`by-complex/${encodeURIComponent(id)}.json`).then((f) => f.trades)
+export const loadRentMonths = async (yms: string[]): Promise<Rent[]> =>
+  (await Promise.all(yms.map((ym) => loadJson<RentMonthFile>(`rents/${ym}.json`)))).flatMap((f) => f.rents)
+/** 단지별 전월세. 전월세 거래가 없는 단지는 파일이 없으므로 빈 목록으로 본다. */
+export const loadComplexRents = (id: string): Promise<Rent[]> =>
+  loadJson<ComplexRentFile>(`by-complex-rent/${encodeURIComponent(id)}.json`).then(
+    (f) => f.rents,
+    (e: unknown) => {
+      if (e instanceof DataError && e.kind === 'not_found') return []
+      throw e
+    },
+  )
 export const loadBriefing = () => loadJson<Briefing>('briefing/latest.json')
 export const loadBriefingIndex = () => loadJson<BriefingIndex>('briefing/index.json')
 export const loadBriefingArchive = (date: string) => loadJson<Briefing>(`briefing/archive/${date}.json`)
 export const loadPresales = () => loadJson<PresalesFile>('presales.json')
 export const loadDevelopments = () => loadJson<DevelopmentsFile>('developments.json')
 export const loadSchools = () => loadJson<SchoolsFile>('schools.json')
+export const loadPriceIndex = () => loadJson<PriceIndexFile>('stats/price-index.json')
 
 /** 필요한 달만 병렬 로드 */
 export async function loadMonths(yms: string[]): Promise<Trade[]> {

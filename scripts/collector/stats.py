@@ -54,18 +54,31 @@ def recent_trades(trades: list[dict], limit: int = 30) -> list[dict]:
     return visible[:limit]
 
 
-def build_complexes(trades: list[dict], geocache: dict, kapt_by_complex: dict) -> list[dict]:
-    """전체 거래에서 단지 목록을 만든다. 좌표·K-apt 정보는 캐시에 확인된 값만 넣는다(없으면 null)."""
+KAPT_FIELDS = ("kaptCode", "households", "dongCount", "topFloor", "useDate", "heating", "hallType", "builder",
+               "parkingTotal", "welfare", "convenient", "education", "busTime", "fetchedAt")
+
+
+def build_complexes(trades: list[dict], geocache: dict, kapt_by_complex: dict,
+                    rents: list[dict] | None = None, kapt_only: list[dict] | None = None) -> list[dict]:
+    """매매·전월세 거래와 K-apt 단지 목록에서 단지 목록을 만든다.
+
+    좌표·K-apt 정보는 캐시에 확인된 값만 넣는다(없으면 null).
+    kapt_only: 수집 기간에 실거래가 없어 거래 자료에는 나타나지 않는 K-apt 단지.
+    """
     groups: dict[str, list[dict]] = defaultdict(list)
     for t in trades:
         groups[t["complexId"]].append(t)
+    rent_groups: dict[str, list[dict]] = defaultdict(list)
+    for t in rents or []:
+        rent_groups[t["complexId"]].append(t)
 
     out = []
-    for cid, lst in groups.items():
-        lst.sort(key=lambda t: t["dealDate"], reverse=True)
+    for cid in sorted({*groups, *rent_groups}):
+        lst = sorted(groups.get(cid, []), key=lambda t: t["dealDate"], reverse=True)
+        rall = sorted(rent_groups.get(cid, []), key=lambda t: t["dealDate"], reverse=True)
         act = [t for t in lst if is_active(t)]
-        head = lst[0]
-        years = Counter(t["buildYear"] for t in lst if t.get("buildYear"))
+        head = lst[0] if lst else rall[0]
+        years = Counter(t["buildYear"] for t in [*lst, *rall] if t.get("buildYear"))
         geo = geocache.get(cid) or {}
         kapt = kapt_by_complex.get(cid)
         last = act[0] if act else None
@@ -87,7 +100,33 @@ def build_complexes(trades: list[dict], geocache: dict, kapt_by_complex: dict) -
             "lastPrice": last["price"] if last else None,
             "lastArea": last["area"] if last else None,
             "lastFloor": last["floor"] if last else None,
+            "rentCount": sum(1 for r in rall if is_active(r)),
             "kapt": {k: v for k, v in kapt.items() if k != "roadAddress"} if kapt else None,
         })
-    out.sort(key=lambda c: (-c["tradeCount"], c["name"]))
+
+    for e in kapt_only or []:
+        cid = "k" + e["kaptCode"]
+        geo = geocache.get(cid) or {}
+        out.append({
+            "id": cid,
+            "name": e["name"],
+            "umdNm": e["umd"],
+            "jibun": None,
+            "roadAddress": e.get("roadAddress"),
+            "address": e.get("addr") or e.get("roadAddress") or f"순천시 {e['umd']}",
+            "buildYear": int(e["useDate"][:4]) if e.get("useDate") else None,
+            "lat": geo.get("lat"),
+            "lng": geo.get("lng"),
+            "coordSource": geo.get("source") if geo.get("lat") is not None else None,
+            "areas": [],
+            "tradeCount": 0,
+            "cancelledCount": 0,
+            "lastDealDate": None,
+            "lastPrice": None,
+            "lastArea": None,
+            "lastFloor": None,
+            "rentCount": 0,
+            "kapt": {k: e.get(k) for k in KAPT_FIELDS},
+        })
+    out.sort(key=lambda c: (-c["tradeCount"], -c["rentCount"], c["name"]))
     return out

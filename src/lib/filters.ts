@@ -17,7 +17,19 @@ export interface TradeFilter {
   floorMin: number | null
   floorMax: number | null
   includeCancelled: boolean
+  /** 직거래(중개사 없이 당사자 간 거래) 제외 */
+  excludeDirect: boolean
+  /** 매도자 또는 매수자가 법인인 거래 제외 */
+  excludeCorp: boolean
   sort: TradeSort
+}
+
+export function isDirect(t: Trade): boolean {
+  return t.dealType === '직거래'
+}
+
+export function isCorp(t: Trade): boolean {
+  return t.buyer === '법인' || t.seller === '법인'
 }
 
 export function defaultTradeFilter(fromYm: string, toYm: string): TradeFilter {
@@ -34,8 +46,59 @@ export function defaultTradeFilter(fromYm: string, toYm: string): TradeFilter {
     floorMin: null,
     floorMax: null,
     includeCancelled: true,
+    excludeDirect: false,
+    excludeCorp: false,
     sort: 'date_desc',
   }
+}
+
+const SORTS: TradeSort[] = ['date_desc', 'date_asc', 'price_desc', 'price_asc', 'area_desc', 'area_asc']
+const NUM_KEYS = [
+  ['amin', 'areaMin'],
+  ['amax', 'areaMax'],
+  ['pmin', 'priceMin'],
+  ['pmax', 'priceMax'],
+  ['fmin', 'floorMin'],
+  ['fmax', 'floorMax'],
+] as const
+
+/** 검색 조건 → 주소 쿼리. 기본값과 같은 항목은 생략해 주소를 짧게 유지한다. */
+export function filterToParams(f: TradeFilter, base: TradeFilter): URLSearchParams {
+  const p = new URLSearchParams()
+  if (f.fromYm !== base.fromYm) p.set('from', f.fromYm)
+  if (f.toYm !== base.toYm) p.set('to', f.toYm)
+  if (f.zoneId !== ALL_ZONE) p.set('zone', f.zoneId)
+  if (f.dong) p.set('dong', f.dong)
+  if (f.q.trim()) p.set('q', f.q.trim())
+  for (const [k, key] of NUM_KEYS) if (f[key] != null) p.set(k, String(f[key]))
+  if (!f.includeCancelled) p.set('cancel', '0')
+  if (f.excludeDirect) p.set('direct', '0')
+  if (f.excludeCorp) p.set('corp', '0')
+  if (f.sort !== base.sort) p.set('sort', f.sort)
+  return p
+}
+
+/** 주소 쿼리 → 검색 조건. 잘못된 값은 무시하고 기본값을 쓴다. */
+export function paramsToFilter(p: URLSearchParams, base: TradeFilter, validYms: string[]): TradeFilter {
+  const ym = (v: string | null, d: string) => (v && validYms.includes(v) ? v : d)
+  let fromYm = ym(p.get('from'), base.fromYm)
+  let toYm = ym(p.get('to'), base.toYm)
+  if (fromYm > toYm) [fromYm, toYm] = [toYm, fromYm]
+  const sort = p.get('sort') as TradeSort | null
+  const f: TradeFilter = {
+    ...base,
+    fromYm,
+    toYm,
+    zoneId: p.get('zone') ?? base.zoneId,
+    dong: p.get('dong') ?? '',
+    q: p.get('q') ?? '',
+    includeCancelled: p.get('cancel') !== '0',
+    excludeDirect: p.get('direct') === '0',
+    excludeCorp: p.get('corp') === '0',
+    sort: sort && SORTS.includes(sort) ? sort : base.sort,
+  }
+  for (const [k, key] of NUM_KEYS) f[key] = parseNum(p.get(k) ?? '')
+  return f
 }
 
 /** 검색어 정규화: 공백·괄호·특수문자 제거, 소문자 */
@@ -61,6 +124,8 @@ export function filterTrades(trades: Trade[], f: TradeFilter): Trade[] {
     const ym = t.dealDate.slice(0, 7)
     if (ym < f.fromYm || ym > f.toYm) return false
     if (!f.includeCancelled && (t.cancelled || t.missingSince)) return false
+    if (f.excludeDirect && isDirect(t)) return false
+    if (f.excludeCorp && isCorp(t)) return false
     if (!inZone(t.umdNm, f.zoneId)) return false
     if (f.dong && t.umdNm !== f.dong) return false
     if (!matchesName(t.aptNm, f.q)) return false

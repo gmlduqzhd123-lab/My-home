@@ -124,16 +124,77 @@ def normalize_trade(raw: dict[str, str]) -> dict:
     }
 
 
-def normalize_items(items: list[dict[str, str]]) -> tuple[list[dict], list[str]]:
-    """여러 item 정규화. (정상 레코드, 거부 사유 목록) 반환."""
+def parse_money(v: str | None) -> int:
+    """보증금·월세(만원). 빈 값은 0. 숫자가 아니면 ValueError."""
+    s = (v or "").replace(",", "").strip()
+    if s == "":
+        return 0
+    if not re.fullmatch(r"\d+", s):
+        raise ValueError(f"금액 형식 오류: {v!r}")
+    return int(s)
+
+
+def rent_key(t: dict) -> str:
+    raw = f"{t['complexId']}|{t['dealDate']}|{t['area']:.2f}|{t['floor']}|{t['deposit']}|{t['monthly']}"
+    return "r" + hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
+
+
+def normalize_rent(raw: dict[str, str]) -> dict:
+    """전월세 API item → 레코드(id·firstSeenAt 제외). 월세 0 이면 전세."""
+    apt_nm = clean(raw.get("aptNm"))
+    umd_nm = clean(raw.get("umdNm"))
+    if not apt_nm or not umd_nm:
+        raise ValueError("아파트명 또는 법정동 누락")
+    apt_nm = normalize_name(apt_nm)
+    jibun = clean(raw.get("jibun"))
+    deposit, monthly = parse_money(raw.get("deposit")), parse_money(raw.get("monthlyRent"))
+    if deposit == 0 and monthly == 0:
+        raise ValueError("보증금과 월세가 모두 0")
+    prev_deposit, prev_monthly = clean(raw.get("preDeposit")), clean(raw.get("preMonthlyRent"))
+    renewal = clean(raw.get("useRRRight"))
+    return {
+        "complexId": complex_id(umd_nm, jibun, apt_nm),
+        "aptNm": apt_nm,
+        "umdNm": umd_nm,
+        "jibun": jibun,
+        "dealDate": parse_deal_date(raw.get("dealYear"), raw.get("dealMonth"), raw.get("dealDay")),
+        "deposit": deposit,
+        "monthly": monthly,
+        "area": parse_area(raw.get("excluUseAr")),
+        "floor": parse_int(raw.get("floor")),
+        "buildYear": parse_int(raw.get("buildYear")),
+        "contractType": clean(raw.get("contractType")),  # 신규 / 갱신
+        "contractTerm": clean(raw.get("contractTerm")),
+        "useRenewal": None if renewal is None else renewal == "사용",
+        "prevDeposit": parse_money(prev_deposit) if prev_deposit else None,
+        "prevMonthly": parse_money(prev_monthly) if prev_monthly else None,
+    }
+
+
+def normalize_items(items: list[dict[str, str]], fn=None) -> tuple[list[dict], list[str]]:
+    """여러 item 정규화. (정상 레코드, 거부 사유 목록) 반환. fn 기본값은 매매(normalize_trade)."""
+    fn = fn or normalize_trade
     ok: list[dict] = []
     rejected: list[str] = []
     for raw in items:
         try:
-            ok.append(normalize_trade(raw))
+            ok.append(fn(raw))
         except ValueError as e:
             rejected.append(str(e))
     return ok, rejected
+
+
+def assign_rent_ids(per_source: list[list[dict]]) -> list[dict]:
+    """전월세용 id 부여(규칙은 assign_ids 와 같다)."""
+    best: dict[str, list[dict]] = {}
+    for rents in per_source:
+        grouped: dict[str, list[dict]] = {}
+        for t in rents:
+            grouped.setdefault(rent_key(t), []).append(t)
+        for k, lst in grouped.items():
+            if len(lst) > len(best.get(k, [])):
+                best[k] = lst
+    return [{"id": f"{k}-{i}", **t} for k, lst in best.items() for i, t in enumerate(lst)]
 
 
 def assign_ids(per_source: list[list[dict]]) -> list[dict]:

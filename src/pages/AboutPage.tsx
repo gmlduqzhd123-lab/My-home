@@ -24,6 +24,15 @@ function Status({ m }: { m: Manifest }) {
     ['수집 범위(계약월)', months.length ? `${formatYm(months[0].ym)} ~ ${formatYm(months[months.length - 1].ym)} (${months.length}개월)` : '없음'],
     ['매매 거래(해제 제외)', `${m.totals.trades.toLocaleString('ko-KR')}건`],
     ['해제 거래', `${m.totals.cancelled.toLocaleString('ko-KR')}건`],
+    ['전월세 거래', m.rentMonths?.length ? `${(m.totals.rents ?? 0).toLocaleString('ko-KR')}건 (${m.rentMonths.length}개월)` : '연결되지 않음'],
+    [
+      '지역코드별 매매 수신(마지막 실행)',
+      m.lawdCounts && Object.keys(m.lawdCounts).length
+        ? Object.entries(m.lawdCounts)
+            .map(([code, n]) => `${code}: ${n.toLocaleString('ko-KR')}건`)
+            .join(' · ')
+        : '기록 없음',
+    ],
     ['단지', `${m.totals.complexes.toLocaleString('ko-KR')}곳 (좌표 확인 ${m.totals.geocoded.toLocaleString('ko-KR')}곳)`],
     ['대상 지역', `${m.region.name} (법정동 시군구코드 ${m.region.lawdCd})`],
   ]
@@ -120,7 +129,7 @@ export default function AboutPage() {
 
       <Card>
         <CardHeader title="생활권 구분 기준" desc="실거래 자료는 법정동 단위입니다. 생활권은 탐색 편의를 위한 서비스용 구분입니다" />
-        <div className="overflow-x-auto pt-2">
+        <div className="overflow-x-auto pt-2" tabIndex={0} role="group" aria-label="가로로 스크롤할 수 있는 표">
           <table className="w-full min-w-[480px] text-sm">
             <caption className="sr-only">생활권과 법정동 대응</caption>
             <thead>

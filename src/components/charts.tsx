@@ -55,7 +55,7 @@ export function VolumeChart({ points, height = 200 }: { points: MonthlyPoint[]; 
   return (
     <ChartFrame summary={summary} height={height}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
+        <BarChart accessibilityLayer={false} data={points} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
           <XAxis dataKey="ym" tickFormatter={(v: string) => v.slice(2).replace('-', '.')} tick={AXIS} tickLine={false} axisLine={{ stroke: 'var(--line)' }} minTickGap={16} />
           <YAxis allowDecimals={false} tick={AXIS} tickLine={false} axisLine={false} />
@@ -77,7 +77,7 @@ export function MedianVolumeChart({ points, height = 260 }: { points: MonthlyPoi
   return (
     <ChartFrame summary={describeMonthly(points)} height={height}>
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={points} margin={{ top: 8, right: -8, bottom: 0, left: 4 }}>
+        <ComposedChart accessibilityLayer={false} data={points} margin={{ top: 8, right: -8, bottom: 0, left: 4 }}>
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
           <XAxis dataKey="ym" tickFormatter={(v: string) => v.slice(2).replace('-', '.')} tick={AXIS} tickLine={false} axisLine={{ stroke: 'var(--line)' }} minTickGap={16} />
           <YAxis yAxisId="price" tickFormatter={formatPriceShort} tick={AXIS} tickLine={false} axisLine={false} width={52} domain={['auto', 'auto']} />
@@ -98,6 +98,72 @@ export function MedianVolumeChart({ points, height = 260 }: { points: MonthlyPoi
           <Bar yAxisId="count" dataKey="count" fill="var(--line)" radius={[3, 3, 0, 0]} maxBarSize={24} />
           <Line yAxisId="price" dataKey="median" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 2.5, fill: 'var(--accent)' }} connectNulls />
         </ComposedChart>
+      </ResponsiveContainer>
+    </ChartFrame>
+  )
+}
+
+/** 전월세: 월별 전세·월세 건수(누적 막대) + 전세 보증금 중위(선) */
+export function RentChart({ points, height = 260 }: { points: { ym: string; jeonse: number; wolse: number; medianJeonse: number | null }[]; height?: number }) {
+  const total = points.reduce((s, p) => s + p.jeonse + p.wolse, 0)
+  const withMedian = points.filter((p) => p.medianJeonse != null)
+  const summary =
+    total === 0
+      ? '선택한 조건에 해당하는 전월세 거래가 없습니다.'
+      : `전월세 ${total.toLocaleString('ko-KR')}건(전세 ${points.reduce((s, p) => s + p.jeonse, 0).toLocaleString('ko-KR')}건, 월세 ${points.reduce((s, p) => s + p.wolse, 0).toLocaleString('ko-KR')}건). ` +
+        (withMedian.length
+          ? `전세 보증금 월 중위는 ${formatYm(withMedian[0].ym)} ${formatPrice(withMedian[0].medianJeonse)}, ${formatYm(withMedian[withMedian.length - 1].ym)} ${formatPrice(withMedian[withMedian.length - 1].medianJeonse)}. `
+          : '') +
+        '월 중위값은 그 달에 계약된 단지·면적 구성에 따라 달라집니다.'
+  return (
+    <ChartFrame summary={summary} height={height}>
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart accessibilityLayer={false} data={points} margin={{ top: 8, right: -8, bottom: 0, left: 4 }}>
+          <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+          <XAxis dataKey="ym" tickFormatter={(v: string) => v.slice(2).replace('-', '.')} tick={AXIS} tickLine={false} axisLine={{ stroke: 'var(--line)' }} minTickGap={16} />
+          <YAxis yAxisId="price" tickFormatter={formatPriceShort} tick={AXIS} tickLine={false} axisLine={false} width={52} domain={['auto', 'auto']} />
+          <YAxis yAxisId="count" orientation="right" allowDecimals={false} tick={AXIS} tickLine={false} axisLine={false} width={36} />
+          <Tooltip
+            cursor={{ fill: 'var(--surface-2)' }}
+            contentStyle={tooltipStyle}
+            labelFormatter={(v) => `${formatYm(String(v))} 계약`}
+            formatter={(v, name) =>
+              name === 'medianJeonse' ? [formatPrice(Number(v)), '전세 보증금 중위'] : [`${v}건`, name === 'jeonse' ? '전세' : '월세']
+            }
+          />
+          <Legend
+            verticalAlign="top"
+            height={24}
+            iconSize={10}
+            wrapperStyle={{ fontSize: 12 }}
+            formatter={(v) => ({ jeonse: '전세 건수', wolse: '월세 건수', medianJeonse: '전세 보증금 중위' })[String(v)] ?? v}
+          />
+          <Bar yAxisId="count" dataKey="jeonse" stackId="n" fill="var(--line)" maxBarSize={24} />
+          <Bar yAxisId="count" dataKey="wolse" stackId="n" fill="var(--muted)" fillOpacity={0.45} radius={[3, 3, 0, 0]} maxBarSize={24} />
+          <Line yAxisId="price" dataKey="medianJeonse" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 2.5, fill: 'var(--accent)' }} connectNulls />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </ChartFrame>
+  )
+}
+
+/** 가격지수 추이(선) */
+export function IndexChart({ items, height = 220 }: { items: { ym: string; value: number }[]; height?: number }) {
+  const first = items[0]
+  const last = items[items.length - 1]
+  const summary = items.length
+    ? `${formatYm(first.ym)} ${first.value.toFixed(1)} → ${formatYm(last.ym)} ${last.value.toFixed(1)}. 지수는 기준시점을 100 으로 둔 상대값이며 금액이 아닙니다.`
+    : '표시할 지수가 없습니다.'
+  return (
+    <ChartFrame summary={summary} height={height}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart accessibilityLayer={false} data={items} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
+          <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+          <XAxis dataKey="ym" tickFormatter={(v: string) => v.slice(2).replace('-', '.')} tick={AXIS} tickLine={false} axisLine={{ stroke: 'var(--line)' }} minTickGap={24} />
+          <YAxis tick={AXIS} tickLine={false} axisLine={false} width={44} domain={['auto', 'auto']} tickFormatter={(v: number) => v.toFixed(1)} />
+          <Tooltip contentStyle={tooltipStyle} labelFormatter={(v) => formatYm(String(v))} formatter={(v) => [Number(v).toFixed(2), '매매가격지수']} />
+          <Line dataKey="value" stroke="var(--accent)" strokeWidth={2.5} dot={false} isAnimationActive={false} />
+        </LineChart>
       </ResponsiveContainer>
     </ChartFrame>
   )
@@ -138,7 +204,7 @@ export function PriceTrendChart({ trades, points, height = 260 }: { trades: Trad
   return (
     <ChartFrame summary={summary} height={height}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+        <LineChart accessibilityLayer={false} data={data} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="x"
@@ -208,7 +274,7 @@ export function CompareChart({
   return (
     <ChartFrame summary={summary} height={height}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+        <LineChart accessibilityLayer={false} data={data} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
           <XAxis dataKey="ym" tickFormatter={(v: string) => v.slice(2).replace('-', '.')} tick={AXIS} tickLine={false} axisLine={{ stroke: 'var(--line)' }} minTickGap={16} />
           <YAxis tickFormatter={formatPriceShort} tick={AXIS} tickLine={false} axisLine={false} width={52} domain={['auto', 'auto']} />

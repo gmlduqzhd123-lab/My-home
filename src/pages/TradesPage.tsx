@@ -1,15 +1,26 @@
 import { RotateCcw, SlidersHorizontal } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { MedianVolumeChart, PriceTrendChart } from '@/components/charts'
 import { TradeTable } from '@/components/TradeTable'
 import { Button } from '@/components/ui/button'
 import { Card, CardBody, CardHeader, Field, Input, PageTitle, Segmented, Select } from '@/components/ui/primitives'
 import { EmptyState, PendingState, ResourceView } from '@/components/ui/states'
 import { ZoneNote } from '@/components/ZoneNote'
-import { ALL_ZONE, ZONES } from '@/config/zones'
+import { ALL_ZONE, findZone, ZONES } from '@/config/zones'
 import { availableYms, useManifest, useMonths } from '@/lib/data'
-import { defaultTradeFilter, distinctDongs, filterTrades, parseNum, type TradeFilter, type TradeSort } from '@/lib/filters'
+import {
+  defaultTradeFilter,
+  distinctDongs,
+  filterToParams,
+  filterTrades,
+  isCorp,
+  isDirect,
+  paramsToFilter,
+  parseNum,
+  type TradeFilter,
+  type TradeSort,
+} from '@/lib/filters'
 import { formatDate, formatDateTime, formatFloor, formatPrice, formatYm, shiftYm, ymRange } from '@/lib/format'
 import { areaGroup, monthlyAggregate, summarize } from '@/lib/stats'
 import { usePrefs } from '@/store/prefs'
@@ -73,29 +84,59 @@ function NumPair({
 }
 
 function TradesView({ manifest }: { manifest: Manifest }) {
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
   const zoneId = usePrefs((s) => s.zoneId)
   const setZone = usePrefs((s) => s.setZone)
   const allYms = useMemo(() => manifest.months.map((m) => m.ym).sort(), [manifest])
   const lastYm = allYms[allYms.length - 1]
   const firstYm = allYms[0]
+  const base = useMemo(
+    () => defaultTradeFilter(shiftYm(lastYm, -11) < firstYm ? firstYm : shiftYm(lastYm, -11), lastYm),
+    [firstYm, lastYm],
+  )
 
-  const [f, setF] = useState<TradeFilter>(() => ({
-    ...defaultTradeFilter(shiftYm(lastYm, -11) < firstYm ? firstYm : shiftYm(lastYm, -11), lastYm),
-    q: params.get('q') ?? '',
-  }))
-  const [showMore, setShowMore] = useState(false)
+  // 주소의 검색 조건으로 시작한다(링크 공유·새로고침·뒤로가기 복원)
+  const [f, setF] = useState<TradeFilter>(() => paramsToFilter(params, base, allYms))
+  const [showMore, setShowMore] = useState(
+    () => ['amin', 'amax', 'pmin', 'pmax', 'fmin', 'fmax'].some((k) => params.has(k)),
+  )
   const set = (patch: Partial<TradeFilter>) => setF((cur) => ({ ...cur, ...patch }))
-  const filter: TradeFilter = { ...f, zoneId }
+  const filter: TradeFilter = useMemo(() => ({ ...f, zoneId }), [f, zoneId])
+
+  useEffect(() => {
+    const z = params.get('zone')
+    if (z && findZone(z)) setZone(z)
+    // 처음 한 번만: 주소에 생활권이 있으면 적용
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 상단 검색창에서 새 검색어로 들어온 경우 주소의 조건을 다시 읽는다
+  const searchSignal = (useLocation().state as { search?: number } | null)?.search
+  useEffect(() => {
+    if (searchSignal) setF(paramsToFilter(params, base, allYms))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchSignal])
+
+  useEffect(() => {
+    const next = filterToParams(filter, base)
+    if (next.toString() !== params.toString()) setParams(next, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, base])
 
   const yms = useMemo(() => availableYms(manifest, f.fromYm, f.toYm), [manifest, f.fromYm, f.toYm])
   const res = useMonths(yms)
   const preset = PRESETS.find((p) => f.toYm === lastYm && f.fromYm === (shiftYm(lastYm, -(p.value - 1)) < firstYm ? firstYm : shiftYm(lastYm, -(p.value - 1))))
 
   const reset = () => {
-    setF(defaultTradeFilter(shiftYm(lastYm, -11) < firstYm ? firstYm : shiftYm(lastYm, -11), lastYm))
+    setF(base)
     setZone(ALL_ZONE)
   }
+  const check = (label: string, checked: boolean, onChange: (v: boolean) => void) => (
+    <label className="flex cursor-pointer items-center gap-1.5 text-[13px] text-ink">
+      <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      {label}
+    </label>
+  )
 
   return (
     <div className="space-y-4">
@@ -174,10 +215,11 @@ function TradesView({ manifest }: { manifest: Manifest }) {
             <Button size="sm" variant="ghost" onClick={reset}>
               <RotateCcw /> 조건 초기화
             </Button>
-            <label className="ml-auto flex cursor-pointer items-center gap-1.5 text-[13px] text-ink">
-              <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={f.includeCancelled} onChange={(e) => set({ includeCancelled: e.target.checked })} />
-              해제 거래도 목록에 표시
-            </label>
+            <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              {check('해제 거래도 목록에 표시', f.includeCancelled, (v) => set({ includeCancelled: v }))}
+              {check('직거래 제외', f.excludeDirect, (v) => set({ excludeDirect: v }))}
+              {check('법인 거래 제외', f.excludeCorp, (v) => set({ excludeCorp: v }))}
+            </div>
           </div>
 
           {showMore && (
@@ -201,6 +243,8 @@ function TradesView({ manifest }: { manifest: Manifest }) {
 function Results({ all, filter, manifest }: { all: Trade[]; filter: TradeFilter; manifest: Manifest }) {
   const list = useMemo(() => filterTrades(all, filter), [all, filter])
   const sum = useMemo(() => summarize(list), [list])
+  const direct = useMemo(() => list.filter((t) => !t.cancelled && !t.missingSince && isDirect(t)).length, [list])
+  const corp = useMemo(() => list.filter((t) => !t.cancelled && !t.missingSince && isCorp(t)).length, [list])
   const yms = useMemo(() => ymRange(filter.fromYm, filter.toYm), [filter.fromYm, filter.toYm])
   const monthly = useMemo(() => monthlyAggregate(list, yms), [list, yms])
   // 한 단지·한 면적 그룹으로 좁혀졌을 때만 개별 거래 추이를 "같은 조건"으로 보여 준다
@@ -225,7 +269,11 @@ function Results({ all, filter, manifest }: { all: Trade[]; filter: TradeFilter;
           desc={`${formatYm(filter.fromYm)}~${formatYm(filter.toYm)} 계약 · 해제·미확인 ${sum.cancelled}건은 통계에서 제외`}
         />
         <CardBody className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-          <Stat label="거래 건수" value={`${sum.count.toLocaleString('ko-KR')}건`} sub={`목록 ${list.length.toLocaleString('ko-KR')}건`} />
+          <Stat
+            label="거래 건수"
+            value={`${sum.count.toLocaleString('ko-KR')}건`}
+            sub={`직거래 ${direct.toLocaleString('ko-KR')}건 · 법인 거래 ${corp.toLocaleString('ko-KR')}건 포함`}
+          />
           <Stat label="중위 거래금액" value={formatPrice(sum.median)} sub={`표본 ${sum.count.toLocaleString('ko-KR')}건`} />
           <Stat label="최고 거래금액" value={formatPrice(sum.max?.price)} sub={tradeSub(sum.max)} />
           <Stat label="최저 거래금액" value={formatPrice(sum.min?.price)} sub={tradeSub(sum.min)} />

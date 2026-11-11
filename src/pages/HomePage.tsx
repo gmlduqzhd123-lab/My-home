@@ -1,13 +1,13 @@
 import { ArrowRight, Building2, MapPin, Newspaper } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { MedianVolumeChart } from '@/components/charts'
+import { IndexChart, MedianVolumeChart } from '@/components/charts'
 import { TradeTable } from '@/components/TradeTable'
 import { Button } from '@/components/ui/button'
 import { Badge, Card, CardBody, CardHeader, Skeleton } from '@/components/ui/primitives'
 import { EmptyState, NotAvailable, PendingState, ResourceView } from '@/components/ui/states'
 import { ZONES } from '@/config/zones'
-import { freshness, loadBriefing, loadPresales, useComplexes, useManifest, useResource, useSummary } from '@/lib/data'
+import { freshness, loadBriefing, loadPresales, loadPriceIndex, useComplexes, useManifest, useResource, useSummary } from '@/lib/data'
 import { formatCount, formatDate, formatDateTime, formatPrice, formatYm } from '@/lib/format'
 import { usePrefs } from '@/store/prefs'
 import type { Briefing, Complex, Manifest, SummaryFile } from '@/types'
@@ -116,6 +116,7 @@ export default function HomePage() {
   const complexes = useComplexes(ready)
   const briefing = useResource('briefing', loadBriefing)
   const presales = useResource('presales', loadPresales)
+  const priceIndex = useResource('price-index', loadPriceIndex)
   const setZone = usePrefs((s) => s.setZone)
   const navigate = useNavigate()
 
@@ -191,6 +192,24 @@ export default function HomePage() {
             </CardBody>
           </Card>
         </>
+      )}
+
+      {priceIndex.status === 'ok' && priceIndex.data.status === 'ok' && priceIndex.data.items.length > 1 && (
+        <Card>
+          <CardHeader
+            title="순천시 아파트 매매가격지수"
+            desc={`한국부동산원 전국주택가격동향조사(월간) · 조회 ${formatDateTime(priceIndex.data.fetchedAt)}`}
+          />
+          <CardBody>
+            <IndexChart items={priceIndex.data.items.slice(-60)} />
+            <p className="mt-2 text-[12px] leading-relaxed text-muted">
+              표본 주택의 가격 변동을 조사해 만든 통계 지수입니다. 위의 실거래 중위가와는 산출 방식이 다르며, 개별 단지의 가격을 뜻하지 않습니다.{' '}
+              <a href={priceIndex.data.source.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                출처
+              </a>
+            </p>
+          </CardBody>
+        </Card>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">

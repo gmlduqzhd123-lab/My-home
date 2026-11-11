@@ -66,6 +66,31 @@ def validate_month(f: dict) -> None:
         raise ValidationError(p)
 
 
+def validate_rent_month(f: dict) -> None:
+    p: list[str] = []
+    ym = f.get("ym", "")
+    if not YM.match(ym) or not f.get("fetchedAt") or not f.get("source"):
+        p.append(f"전월세 {ym}: ym/fetchedAt/source")
+    ids: set[str] = set()
+    for t in f.get("rents", []):
+        tid = t.get("id", "?")
+        if not all(isinstance(t.get(k), str) and t.get(k) for k in ("id", "complexId", "aptNm", "umdNm", "firstSeenAt")):
+            p.append(f"전월세 {tid}: 필수값 누락")
+        if not DATE.match(str(t.get("dealDate"))) or str(t.get("dealDate"))[:7] != ym:
+            p.append(f"전월세 {tid}: dealDate")
+        for k in ("deposit", "monthly"):
+            v = t.get(k)
+            if not isinstance(v, int) or isinstance(v, bool) or not 0 <= v <= 5_000_000:
+                p.append(f"전월세 {tid}: {k}")
+        if not isinstance(t.get("area"), (int, float)) or not 5 <= t.get("area", 0) <= 500:
+            p.append(f"전월세 {tid}: area")
+        if tid in ids:
+            p.append(f"전월세 {ym}: 중복 id {tid}")
+        ids.add(tid)
+    if p:
+        raise ValidationError(p)
+
+
 def validate_manifest(m: dict, month_counts: dict[str, int]) -> None:
     p: list[str] = []
     if m.get("status") not in ("ok", "pending"):

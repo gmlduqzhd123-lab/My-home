@@ -117,7 +117,7 @@ export default function CalculatorPage() {
       {r.valid && yearly.length > 0 && (
         <Card>
           <CardHeader title="연차별 상환 일정" desc="각 연차 마지막 달 기준" />
-          <div className="overflow-x-auto pt-2">
+          <div className="overflow-x-auto pt-2" tabIndex={0} role="group" aria-label="가로로 스크롤할 수 있는 표">
             <table className="num w-full min-w-[520px] text-sm">
               <caption className="sr-only">연차별 상환 일정</caption>
               <thead>

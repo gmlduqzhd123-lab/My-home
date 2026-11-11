@@ -29,7 +29,7 @@ function Table({ rows }: { rows: CompareRow[] }) {
     </tr>
   )
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" tabIndex={0} role="group" aria-label="가로로 스크롤할 수 있는 표">
       <table className="w-full min-w-[560px]">
         <caption className="sr-only">단지 비교 표</caption>
         <thead>

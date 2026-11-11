@@ -2,7 +2,7 @@ import { ExternalLink } from 'lucide-react'
 import { Badge, Card, CardBody, PageTitle } from '@/components/ui/primitives'
 import { NotAvailable, PendingState, ResourceView } from '@/components/ui/states'
 import { loadPresales, useResource } from '@/lib/data'
-import { formatDate, formatDateTime } from '@/lib/format'
+import { formatDate, formatDateTime, formatPrice } from '@/lib/format'
 import type { PresaleItem } from '@/types'
 
 const NA = '공고 확인 불가'
@@ -26,7 +26,7 @@ function Item({ p }: { p: PresaleItem }) {
     ['당첨자 발표', p.winnerDate ? formatDate(p.winnerDate) : NA],
     ['계약', range(p.contractStart, p.contractEnd)],
     ['입주 예정', moveIn(p.moveInMonth)],
-    ['분양가격', p.prices.length ? p.prices.map((x) => `${x.type} ${x.price.toLocaleString('ko-KR')}만원`).join(', ') : '미연계 — 모집공고에서 확인'],
+    ['분양가격', p.prices.length ? p.prices.map((x) => `${x.type} 최고 ${formatPrice(x.price)}원`).join(' · ') : NA],
   ]
   return (
     <Card>

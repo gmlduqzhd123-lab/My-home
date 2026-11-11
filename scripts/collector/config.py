@@ -28,6 +28,10 @@ PRIMARY_LAWD = LAWD_CODES[0]
 # 국토교통부 아파트 매매 실거래가 상세 자료 (https://www.data.go.kr/data/15126468/openapi.do)
 MOLIT_TRADE_URL = "https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev"
 MOLIT_TRADE_PAGE = "https://www.data.go.kr/data/15126468/openapi.do"
+# 국토교통부 아파트 전월세 실거래가 자료 (https://www.data.go.kr/data/15126474/openapi.do)
+MOLIT_RENT_URL = "https://apis.data.go.kr/1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent"
+MOLIT_RENT_PAGE = "https://www.data.go.kr/data/15126474/openapi.do"
+SOURCE_RENT = "국토교통부 아파트 전월세 실거래가 자료"
 # 국토교통부 공동주택 단지 목록 / 기본정보 (K-apt)
 KAPT_LIST_URL = "https://apis.data.go.kr/1613000/AptListService4/getSigunguAptList4"
 KAPT_LIST_PAGE = "https://www.data.go.kr/data/15057332/openapi.do"
@@ -37,6 +41,18 @@ KAPT_BASIC_PAGE = "https://www.data.go.kr/data/15058453/openapi.do"
 # 한국부동산원 청약홈 분양정보 조회 서비스
 APPLYHOME_URL = "https://api.odcloud.kr/api/ApplyhomeInfoDetailSvc/v1/getAPTLttotPblancDetail"
 APPLYHOME_PAGE = "https://www.data.go.kr/data/15098547/openapi.do"
+# 청약홈 주택형별 상세(분양가) — 같은 서비스의 다른 오퍼레이션
+APPLYHOME_MDL_URL = "https://api.odcloud.kr/api/ApplyhomeInfoDetailSvc/v1/getAPTLttotPblancMdl"
+# 한국부동산원 부동산통계(R-ONE) Open API — 인증키는 R-ONE 사이트에서 별도 발급(공공데이터포털 키 아님)
+REB_DATA_URL = "https://www.reb.or.kr/r-one/openapi/SttsApiTblData.do"
+REB_PAGE = "https://www.reb.or.kr/r-one/portal/openapi/openApiDevPage.do"
+REB_INDEX_TABLE = "A_2024_00045"  # (월) 매매가격지수_아파트
+REB_INDEX_CLS = "510094"  # 전남광주>전남>순천시
+REB_INDEX_ITM = "100001"  # 지수
+# 전국초중등학교위치표준데이터 (한국교육시설안전원)
+SCHOOL_URL = "https://api.data.go.kr/openapi/tn_pubr_public_elesch_mskul_lc_api"
+SCHOOL_PAGE = "https://www.data.go.kr/data/15021148/standard.do"
+SCHOOL_EDC_SPORT = "8522000"  # 전남광주통합특별시순천교육지원청
 # Kakao Local 주소 검색(좌표 변환)
 KAKAO_ADDRESS_URL = "https://dapi.kakao.com/v2/local/search/address.json"
 

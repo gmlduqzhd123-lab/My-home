@@ -37,6 +37,33 @@ COMPLEXES = [
     ("[가상] 덕암한울", "덕암동", "9012", 1996, [(59.4, 10500), (84.4, 14000)], (34.9408, 127.4958)),
 ]
 COORDS = {f"순천시 {c[1]} {c[2]}": c[5] for c in COMPLEXES}
+# 수집 기간에 거래가 없어 K-apt 단지 목록으로만 확인되는 가상 단지 (단지명, 읍면동, 리, 도로명주소, 좌표)
+KAPT_ONLY = [
+    ("[가상] 매곡고요", "매곡동", "", "순천시 가상매곡길 11", (34.9611, 127.4802)),
+    ("[가상] 선평들녘", "서면", "선평리", "순천시 서면 가상선평길 7", (34.9903, 127.4905)),
+]
+COORDS.update({k[3]: k[4] for k in KAPT_ONLY})
+
+
+def make_rents(rng: random.Random, ym: str) -> list[dict]:
+    y, m = (int(x) for x in ym.split("-"))
+    items = []
+    for name, umd, jibun, build, types, _ in COMPLEXES:
+        for _ in range(rng.choice([0, 1, 1, 2])):
+            area, base = rng.choice(types)
+            jeonse = rng.random() < 0.6
+            deposit = int(round(base * (0.62 if jeonse else 0.12) * rng.uniform(0.92, 1.08), -2))
+            monthly = 0 if jeonse else int(round(base * 0.0022 * rng.uniform(0.9, 1.1)))
+            renew = rng.random() < 0.25
+            items.append({
+                "aptNm": name, "umdNm": umd, "jibun": jibun, "deposit": f"{deposit:,}", "monthlyRent": str(monthly),
+                "dealYear": str(y), "dealMonth": str(m), "dealDay": str(rng.randint(1, 27)),
+                "excluUseAr": str(area), "floor": str(rng.randint(1, 20)), "buildYear": str(build),
+                "contractTerm": f"{y % 100:02d}.{m:02d}~{(y + 2) % 100:02d}.{m:02d}",
+                "contractType": "갱신" if renew else "신규", "useRRRight": "사용" if renew and rng.random() < 0.5 else "",
+                "preDeposit": f"{int(deposit * 0.95):,}" if renew else "", "preMonthlyRent": str(monthly) if renew else "",
+            })
+    return items
 
 
 def make_month(rng: random.Random, ym: str, idx: int, n_months: int) -> list[dict]:
@@ -68,9 +95,17 @@ def fake_get(url, params=None, **_):
         docs = [{"address_name": "전남광주통합특별시 " + params["query"], "x": str(xy[1]), "y": str(xy[0])}] if xy else []
         return json.dumps({"documents": docs}).encode()
     if url == config.KAPT_LIST_URL:
-        items = [{"kaptCode": f"F{i:04d}", "kaptName": c[0]} for i, c in enumerate(COMPLEXES[:8])]
+        items = [{"kaptCode": f"F{i:04d}", "kaptName": c[0], "as3": c[1].split()[0], "as4": " ".join(c[1].split()[1:])}
+                 for i, c in enumerate(COMPLEXES[:8])]
+        items += [{"kaptCode": f"X{i:04d}", "kaptName": k[0], "as3": k[1], "as4": k[2]} for i, k in enumerate(KAPT_ONLY)]
         return json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"items": items, "totalCount": len(items)}}}).encode()
     if url == config.KAPT_BASIC_URL:
+        if params["kaptCode"].startswith("X"):
+            k = KAPT_ONLY[int(params["kaptCode"][1:])]
+            item = {"kaptName": k[0], "kaptAddr": f"순천시 {k[1]} {k[2]}".strip(), "doroJuso": k[3], "kaptdaCnt": "180",
+                    "kaptDongCnt": "3", "kaptTopFloor": "12", "kaptUsedate": "19940620", "codeHeatNm": "개별난방",
+                    "codeHallNm": "복도식", "kaptBcompany": "가상건설"}
+            return json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"item": item}}}).encode()
         c = COMPLEXES[int(params["kaptCode"][1:])]
         item = {"kaptName": c[0], "kaptAddr": f"순천시 {c[1]} {c[2]}", "doroJuso": None, "kaptdaCnt": "640",
                 "kaptDongCnt": "8", "kaptTopFloor": "20", "kaptUsedate": f"{c[3]}0315", "codeHeatNm": "개별난방",
@@ -87,6 +122,24 @@ def fake_get(url, params=None, **_):
                "PRZWNER_PRESNATN_DE": "2026-11-05", "CNTRCT_CNCLS_BGNDE": "2026-11-17", "CNTRCT_CNCLS_ENDDE": "2026-11-19",
                "MVN_PREARNGE_YM": "202903", "PBLANC_URL": "https://www.applyhome.co.kr/"}
         return json.dumps({"data": [row]}).encode()
+    if url == config.APPLYHOME_MDL_URL:
+        rows = [{"HOUSE_TY": "084.9800A", "SUPLY_AR": "113.2", "SUPLY_HSHLDCO": 180, "SPSPLY_HSHLDCO": 120, "LTTOT_TOP_AMOUNT": "46,500"},
+                {"HOUSE_TY": "059.9500B", "SUPLY_AR": "81.4", "SUPLY_HSHLDCO": 120, "SPSPLY_HSHLDCO": 92, "LTTOT_TOP_AMOUNT": "33,900"}]
+        return json.dumps({"data": rows}).encode()
+    if url == config.REB_DATA_URL:
+        now = config.now_kst()
+        rows = [{"WRTTIME_IDTFR_ID": ym.replace("-", ""), "DTA_VAL": round(98 + i * 0.12 + (i % 5) * 0.05, 3),
+                 "CLS_FULLNM": "전남광주>전남>순천시"} for i, ym in enumerate(config.recent_yms(now, 26)[:-2])]
+        return json.dumps({"SttsApiTblData": [{"head": [{"list_total_count": len(rows)}, {"RESULT": {"CODE": "INFO-000"}}]},
+                                              {"row": rows}]}).encode()
+    if url == config.SCHOOL_URL:
+        names = [("[가상] 왕지초등학교", "초등학교", 34.9695, 127.5271), ("[가상] 조례초등학교", "초등학교", 34.9571, 127.5223),
+                 ("[가상] 연향중학교", "중학교", 34.9465, 127.5232), ("[가상] 신대중학교", "중학교", 34.9322, 127.5575),
+                 ("[가상] 순천가상고등학교", "고등학교", 34.9512, 127.5101), ("[가상] 용당초등학교", "초등학교", 34.9711, 127.4872)]
+        items = [{"schoolId": f"FX{i}", "schoolNm": n, "schoolSe": k, "operSttus": "운영",
+                  "rdnmadr": f"전남광주통합특별시 순천시 가상학교길 {i + 1}", "latitude": str(la), "longitude": str(lo)}
+                 for i, (n, k, la, lo) in enumerate(names)]
+        return json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"items": items, "totalCount": len(items)}}}).encode()
     raise AssertionError(url)
 
 
@@ -115,13 +168,20 @@ def main() -> None:
             items = [i for i in items if i not in held]
         return items
 
-    env = {"MOLIT_API_KEY": "fixture", "KAKAO_REST_API_KEY": "fixture"}
+    rents = {ym: make_rents(rng, ym) for ym in yms}
+    for it in rents[cur]:
+        it["dealDay"] = str(rng.randint(1, max(1, now.day - 1)))
+
+    def fetch_rent_month(key, code, ym):
+        return list(rents.get(ym, [])) if code == config.PRIMARY_LAWD else []
+
+    env = {"MOLIT_API_KEY": "fixture", "KAKAO_REST_API_KEY": "fixture", "REB_API_KEY": "fixture"}
     quiet = lambda s: None  # noqa: E731
-    assert pipeline.run(now=yesterday, data_dir=OUT, cache_dir=CACHE, env=env, fetch_month=fetch_month, get=fake_get, log=quiet) == 0
+    assert pipeline.run(now=yesterday, data_dir=OUT, cache_dir=CACHE, env=env, fetch_month=fetch_month, fetch_rent_month=fetch_rent_month, get=fake_get, log=quiet) == 0
     state["today"] = True
     prev = data[yms[-2]][0]  # 지난달 거래 1건이 오늘 해제로 확인됨
     prev["cdealType"], prev["cdealDay"] = "O", f"{now.year % 100:02d}.{now.month:02d}.{max(1, now.day - 1):02d}"
-    assert pipeline.run(now=now, data_dir=OUT, cache_dir=CACHE, env=env, fetch_month=fetch_month, get=fake_get, log=print) == 0
+    assert pipeline.run(now=now, data_dir=OUT, cache_dir=CACHE, env=env, fetch_month=fetch_month, fetch_rent_month=fetch_rent_month, get=fake_get, log=print) == 0
 
     m = read_json(OUT / "manifest.json")
     m["fixture"] = True

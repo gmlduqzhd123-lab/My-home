@@ -15,7 +15,8 @@
     "test:py": "python -m unittest discover -s scripts/tests -t scripts -v",
     "check:secrets": "node tools/check-secrets.mjs",
     "check:pages": "node tools/check-pages-build.mjs",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run test:py && npm run build && npm run check:pages && npm run check:secrets"
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run test:py && npm run build && npm run check:pages && npm run check:secrets",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.5.0",
@@ -30,7 +31,9 @@
     "zustand": "^5.1.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.0",
     "@tailwindcss/vite": "^4.3.5",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",

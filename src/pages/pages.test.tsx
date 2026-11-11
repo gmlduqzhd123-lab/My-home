@@ -108,6 +108,20 @@ describe('실거래 화면', () => {
     expect(screen.getByText(/법정동 단위 자료로는 분리할 수 없습니다/)).toBeInTheDocument()
   })
 
+  it('주소의 검색 조건으로 화면을 복원한다', async () => {
+    open('/trades?q=' + encodeURIComponent('조례') + '&sort=price_asc&direct=0')
+    const rows = (await table()).getAllByRole('row')
+    expect(rows).toHaveLength(1 + 3)
+    expect(rows[1]).toHaveTextContent('1억 7,000만')
+    expect(screen.getByLabelText('단지명')).toHaveValue('조례')
+    expect(screen.getByLabelText('직거래 제외')).toBeChecked()
+  })
+
+  it('전월세가 연결되지 않았으면 연결 대기를 안내한다', async () => {
+    open('/rents')
+    expect(await screen.findByText('전월세 자료 연결 대기 중')).toBeInTheDocument()
+  })
+
   it('검색 결과가 없으면 안내한다', async () => {
     const user = userEvent.setup()
     open('/trades')

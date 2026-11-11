@@ -5,10 +5,13 @@ import { PriceTrendChart, VolumeChart } from '@/components/charts'
 import { CompareButton, FavoriteButton } from '@/components/ComplexActions'
 import { KakaoMap } from '@/components/KakaoMap'
 import { NearbyPlaces, OfficialSchoolLinks } from '@/components/NearbyPlaces'
+import { RentTable } from '@/components/RentTable'
+import { NearestSchools } from '@/components/Schools'
 import { TradeTable } from '@/components/TradeTable'
 import { Badge, Card, CardBody, CardHeader, Segmented } from '@/components/ui/primitives'
 import { EmptyState, NotAvailable, PendingState, ResourceView } from '@/components/ui/states'
-import { useComplexes, useComplexTrades, useManifest } from '@/lib/data'
+import { loadComplexRents, useComplexes, useComplexTrades, useManifest, useResource } from '@/lib/data'
+import { isCorp, isDirect } from '@/lib/filters'
 import { formatDate, formatDateTime, formatPrice, ymRange } from '@/lib/format'
 import { areaGroup, byAreaGroup, compareDateDesc, monthlyAggregate, summarize } from '@/lib/stats'
 import type { Complex, Manifest, Trade } from '@/types'
@@ -32,7 +35,14 @@ function Detail({ c, trades, manifest }: { c: Complex; trades: Trade[]; manifest
   const [areaSel, setAreaSel] = useState<number | 'all' | null>(null)
   const area = areaSel ?? top ?? 'all'
 
-  const scoped = useMemo(() => (area === 'all' ? trades : trades.filter((t) => areaGroup(t.area) === area)), [trades, area])
+  // 직거래·법인 거래는 일반 거래와 금액 수준이 다를 수 있어 따로 빼고 볼 수 있게 한다
+  const [plainOnly, setPlainOnly] = useState(false)
+  const special = useMemo(() => trades.filter((t) => isDirect(t) || isCorp(t)).length, [trades])
+  const scoped = useMemo(
+    () => trades.filter((t) => (area === 'all' || areaGroup(t.area) === area) && (!plainOnly || !(isDirect(t) || isCorp(t)))),
+    [trades, area, plainOnly],
+  )
+  const rents = useResource(`complex-rent:${c.id}`, () => loadComplexRents(c.id))
   const sorted = useMemo(() => [...scoped].sort(compareDateDesc), [scoped])
   const sum = useMemo(() => summarize(scoped), [scoped])
   const yms = useMemo(() => {
@@ -113,6 +123,12 @@ function Detail({ c, trades, manifest }: { c: Complex; trades: Trade[]; manifest
               options={[...groups.map((g) => ({ value: g.area as number | 'all', label: `${g.area}㎡ (${g.count}건)` })), { value: 'all', label: '전체' }]}
             />
           )}
+          {special > 0 && (
+            <label className="mt-3 flex cursor-pointer items-center gap-1.5 text-[13px] text-ink">
+              <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={plainOnly} onChange={(e) => setPlainOnly(e.target.checked)} />
+              직거래·법인 거래 제외 (이 단지 {special}건)
+            </label>
+          )}
           <dl className="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
             <Info label="거래 건수 (해제 제외)" value={`${sum.count}건`} />
             <Info label="중위 거래금액" value={sum.median != null ? formatPrice(sum.median) : null} />
@@ -155,7 +171,37 @@ function Detail({ c, trades, manifest }: { c: Complex; trades: Trade[]; manifest
       </Card>
 
       <Card>
-        <CardHeader title="인근 학교 · 생활시설" desc="단지 좌표 기준 직선거리(Kakao 장소 검색). 실제 이동 거리·통학로와 다릅니다" />
+        <CardHeader
+          title="전월세 실거래"
+          desc={area === 'all' ? '전체 면적 · 계약일 최신순' : `전용 ${area}㎡ · 계약일 최신순`}
+        />
+        <div className="pt-2">
+          <ResourceView res={rents} rows={3} pendingWhenMissing={false}>
+            {(list) => {
+              const shown = area === 'all' ? list : list.filter((r) => areaGroup(r.area) === area)
+              return shown.length ? (
+                <RentTable rents={shown} showComplex={false} />
+              ) : (
+                <NotAvailable title="전월세 거래 없음" className="py-6">
+                  {list.length
+                    ? '선택한 면적의 전월세 거래가 수집 기간 안에 없습니다.'
+                    : manifest.rentMonths?.length
+                      ? '수집 기간 안에 이 단지의 전월세 거래가 없습니다.'
+                      : '전월세 자료가 아직 연결되지 않았습니다.'}
+                </NotAvailable>
+              )
+            }}
+          </ResourceView>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="가까운 학교" desc="학교 위치 표준데이터 기준 직선거리 · 학교급별 3곳. 배정 학교가 아닙니다" />
+        <NearestSchools lat={c.lat} lng={c.lng} />
+      </Card>
+
+      <Card>
+        <CardHeader title="주변 생활시설" desc="단지 좌표 기준 직선거리(Kakao 장소 검색). 실제 이동 거리·통학로와 다릅니다" />
         <NearbyPlaces lat={c.lat} lng={c.lng} />
         <div className="border-t border-line p-4 sm:p-5">
           <p className="mb-2 text-[13px] leading-relaxed text-ink">

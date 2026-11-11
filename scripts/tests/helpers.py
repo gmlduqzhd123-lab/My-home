@@ -26,3 +26,15 @@ def xml_response(items: list[dict[str, str]], total: int | None = None, code: st
         f"<resultMsg>{msg}</resultMsg></header><body><items>{rows}</items><numOfRows>1000</numOfRows>"
         f"<pageNo>1</pageNo><totalCount>{total}</totalCount></body></response>"
     ).encode("utf-8")
+
+
+def rent_item(apt="테스트단지", umd="왕지동", jibun="100", deposit="20,000", monthly="0", y=2026, m=10, d=5,
+              area="84.97", floor="7", **extra) -> dict[str, str]:
+    base = {
+        "aptNm": apt, "umdNm": umd, "jibun": jibun, "deposit": deposit, "monthlyRent": monthly,
+        "dealYear": str(y), "dealMonth": str(m), "dealDay": str(d), "excluUseAr": area, "floor": floor,
+        "buildYear": "2015", "contractTerm": "26.10~28.10", "contractType": "신규", "useRRRight": "",
+        "preDeposit": "", "preMonthlyRent": "", "sggCd": "12150",
+    }
+    base.update(extra)
+    return base

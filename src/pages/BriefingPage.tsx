@@ -115,8 +115,8 @@ function BriefingView({ b }: { b: Briefing }) {
         ) : (
           <CardBody className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {b.zones.map((z) => (
-              <div key={z.zoneId} className={cn('rounded-xl bg-surface-2 px-3.5 py-2.5', z.newCount === 0 && 'opacity-60')}>
-                <p className="text-[13px] font-bold text-ink">{z.name}</p>
+              <div key={z.zoneId} className="rounded-xl bg-surface-2 px-3.5 py-2.5">
+                <p className={cn('text-[13px] font-bold', z.newCount === 0 ? 'text-muted' : 'text-ink')}>{z.name}</p>
                 <p className="num text-[12px] text-muted">
                   새 거래 {z.newCount}건{z.median != null && ` · 중위 ${formatPrice(z.median)}`}
                 </p>

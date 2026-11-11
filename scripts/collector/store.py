@@ -3,7 +3,20 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
+
+
+def _replace(src: Path, dst: Path, attempts: int = 6) -> None:
+    """os.replace + 재시도. Windows 에서는 백신·색인기가 방금 만든 파일을 잠깐 잡고 있어 거부될 수 있다."""
+    for i in range(attempts):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if i == attempts - 1:
+                raise
+            time.sleep(0.2 * (i + 1))
 
 
 def read_json(path: Path, default=None):
@@ -19,7 +32,7 @@ def write_json(path: Path, obj, *, pretty: bool = False) -> None:
                       separators=None if pretty else (",", ":"))
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(text + "\n", encoding="utf-8")
-    os.replace(tmp, path)
+    _replace(tmp, path)
 
 
 def commit(staging: Path, dest: Path) -> int:
@@ -28,6 +41,6 @@ def commit(staging: Path, dest: Path) -> int:
     for src in sorted(staging.rglob("*.json")):
         target = dest / src.relative_to(staging)
         target.parent.mkdir(parents=True, exist_ok=True)
-        os.replace(src, target)
+        _replace(src, target)
         n += 1
     return n

@@ -9,8 +9,9 @@
 - 데이터: Python(표준 라이브러리만 사용) 수집기 → `public/data/*.json`
 - 자동화·배포: GitHub Actions → GitHub Pages
 
-> **현재 상태** — https://gmlduqzhd123-lab.github.io/My-home/ 에 배포되어 있으며, 2026-11-11 첫 수집으로 최근 24개월의
-> 실제 매매 거래(6,841건, 단지 170곳)가 들어 있습니다. 지도 좌표·K-apt 기본정보·분양정보는 아직 연결되지 않았습니다(아래 2단계의 선택 항목).
+> **현재 상태** — https://gmlduqzhd123-lab.github.io/My-home/ 에 배포되어 있으며, 실제 매매 실거래가 매일 수집됩니다.
+> 전월세·단지 기본정보·분양·학교·가격지수·지도는 코드가 준비되어 있고, 아래 2단계의 활용신청·키 등록을 하면 다음 수집부터 표시됩니다.
+> 각 자료의 연결 상태는 사이트의 "데이터 출처" 화면에서 확인할 수 있습니다.
 
 ---
 
@@ -46,8 +47,11 @@ npm run dev:fixture
 | 키 | 용도 | 필수 | 발급 방법 |
 |---|---|---|---|
 | `MOLIT_API_KEY` | 아파트 매매 실거래 조회 | **필수** | [공공데이터포털](https://www.data.go.kr) 가입 → [국토교통부_아파트 매매 실거래가 상세 자료](https://www.data.go.kr/data/15126468/openapi.do) "활용신청" → 마이페이지에서 일반 인증키 복사 |
-| (같은 키) | 단지 세대수·난방 등 기본정보 | 선택 | 같은 계정으로 [공동주택 단지 목록](https://www.data.go.kr/data/15057332/openapi.do), [공동주택 기본 정보](https://www.data.go.kr/data/15058453/openapi.do) 활용신청 |
-| (같은 키) | 분양 공고 | 선택 | 같은 계정으로 [청약홈 분양정보 조회 서비스](https://www.data.go.kr/data/15098547/openapi.do) 활용신청 |
+| (같은 키) | 전월세 실거래 | 선택 | 같은 계정으로 [국토교통부_아파트 전월세 실거래가 자료](https://www.data.go.kr/data/15126474/openapi.do) 활용신청 |
+| (같은 키) | 단지 세대수·난방 등 기본정보, 거래 없는 단지까지 포함한 전체 단지 목록 | 선택 | 같은 계정으로 [공동주택 단지 목록](https://www.data.go.kr/data/15057332/openapi.do), [공동주택 기본 정보](https://www.data.go.kr/data/15058453/openapi.do) 활용신청 |
+| (같은 키) | 학교 목록·가까운 학교 | 선택 | 같은 계정으로 [전국초중등학교위치표준데이터](https://www.data.go.kr/data/15021148/standard.do) 활용신청 |
+| `REB_API_KEY` | 순천시 아파트 매매가격지수 | 선택 | [한국부동산원 R-ONE](https://www.reb.or.kr/r-one/portal/openapi/openApiDevPage.do) 로그인 후 Open API 인증키 발급(공공데이터포털 키와 다름) |
+| (같은 키) | 분양 공고·주택형별 분양가 | 선택 | 같은 계정으로 [청약홈 분양정보 조회 서비스](https://www.data.go.kr/data/15098547/openapi.do) 활용신청 |
 | `KAKAO_REST_API_KEY` | 단지 주소 → 좌표 변환 | 선택 | [Kakao Developers](https://developers.kakao.com) → 애플리케이션 추가 → 앱 키의 **REST API 키** |
 | `KAKAO_MAP_APP_KEY` | 브라우저 지도 표시 | 선택 | 같은 앱의 **JavaScript 키**. 카카오맵 사용 설정 ON, **JavaScript SDK 도메인에 서비스 주소 등록 필수** |
 
@@ -64,6 +68,8 @@ python scripts/collect.py
 ```
 
 - 첫 실행은 최근 24개월, 이후 실행은 최근 12개월을 다시 조회해 신고 지연·해제·정정을 반영합니다(`--months N` 으로 변경).
+- 더 오래된 기간을 채우려면 `python scripts/collect.py --months 60` 처럼 한 번 실행하면 됩니다. 이미 수집된 달은 지워지지 않고 계속 쌓입니다.
+  GitHub 에서는 Actions → "데이터 수집 · 배포" → Run workflow 의 "재조회할 개월 수"에 숫자를 넣습니다.
 - 결과는 `public/data/` 에 생성됩니다. 좌표·K-apt 조회 결과는 `data-cache/` 에 저장해 재사용합니다.
 - 조회에 실패하면 기존 데이터 파일은 건드리지 않고 `manifest.json` 에 실패 사실만 기록합니다(종료 코드 3).
 - 지도 키를 로컬에서 쓰려면 `.env` 의 `VITE_KAKAO_MAP_APP_KEY` 에 JavaScript 키를 넣고 `npm run dev` 를 다시 시작하세요.
@@ -82,14 +88,16 @@ python scripts/collect.py
 
 2. 저장소 **Settings → Pages → Build and deployment → Source** 를 **GitHub Actions** 로 바꿉니다.
 3. **Settings → Secrets and variables → Actions → New repository secret** 으로 키를 등록합니다.
-   `MOLIT_API_KEY`(필수), `KAKAO_REST_API_KEY`, `KAKAO_MAP_APP_KEY`, `KAPT_API_KEY`, `APPLYHOME_API_KEY`(선택).
+   `MOLIT_API_KEY`(필수), `KAKAO_REST_API_KEY`, `KAKAO_MAP_APP_KEY`, `REB_API_KEY`(선택).
+   공공데이터포털 서비스들은 같은 계정이면 키가 같으므로 `MOLIT_API_KEY` 하나로 충분합니다
+   (다른 계정의 키를 쓰려면 `RENT_API_KEY`, `KAPT_API_KEY`, `APPLYHOME_API_KEY`, `SCHOOL_API_KEY` 를 따로 등록).
 4. **Actions → "데이터 수집 · 배포" → Run workflow** 를 눌러 첫 수집을 실행합니다.
 5. 완료되면 `https://<계정>.github.io/<저장소>/` 에서 접속할 수 있습니다.
 
 이후에는 매일 한국시간 오전 7시 30분에 자동으로 수집·배포됩니다(GitHub 예약 실행은 수십 분 늦어질 수 있어 8시 이전 완료를 목표로 앞당겼습니다. 실제 완료 시각은 화면의 "데이터 기준"에 표시됩니다).
 
 - 기준 경로(`base`)는 저장소 이름으로 자동 설정됩니다. 직접 지정하려면 `VITE_BASE` 를 사용하세요.
-- 수집이 실패한 날에도 마지막 정상 데이터로 사이트는 배포되고, 워크플로는 실패로 표시되어 알림을 받습니다. 화면에는 "최근 조회 실패" 띠가 나타납니다.
+- 수집이 실패한 날에도 마지막 정상 데이터로 사이트는 배포됩니다. 워크플로는 실패로 표시되고 저장소에 "공공데이터 수집 실패" 이슈가 생성(이미 열려 있으면 댓글 추가)됩니다. 화면에는 "최근 조회 실패" 띠가 나타납니다.
 - 예약 실행은 저장소에 60일간 활동이 없으면 GitHub 이 자동으로 멈춥니다. 수집 커밋이 매일 생기므로 보통은 유지됩니다.
 
 ## 5. 명령어
@@ -103,6 +111,7 @@ python scripts/collect.py
 | `npm run typecheck` / `npm run lint` | TypeScript 검사 / ESLint |
 | `npm run test` | 프런트엔드 테스트(Vitest) |
 | `npm run test:py` | 수집기 테스트(unittest) |
+| `npm run test:e2e` | 브라우저 E2E·접근성 테스트(Playwright). 처음 한 번 `npx playwright install chromium` 필요 |
 | `npm run check:pages` | GitHub Pages 경로·빌드 검증 |
 | `npm run check:secrets` | API 키 노출 점검 |
 | `npm run verify` | 위 검사를 모두 실행 |
@@ -114,12 +123,15 @@ python scripts/collect.py
 |---|---|
 | `manifest.json` | 상태, 마지막 정상 갱신 시각(`generatedAt`), 마지막 시도 결과, 수집된 달 목록, 출처별 연결 상태 |
 | `trades/YYYY-MM.json` | 계약월별 거래(출처·조회 시각 포함). 화면은 필요한 달만 내려받습니다 |
-| `by-complex/<단지ID>.json` | 단지별 전체 거래(단지 상세·비교용) |
+| `by-complex/<단지ID>.json` | 단지별 전체 매매 거래(단지 상세·비교용) |
+| `rents/YYYY-MM.json`, `by-complex-rent/<단지ID>.json` | 계약월별·단지별 전월세 거래 |
+| `stats/price-index.json` | 한국부동산원 (월) 아파트 매매가격지수 — 순천시 |
+| `schools.json` | 순천시 초·중·고 위치 |
 | `complexes.json` | 단지 목록(주소, 준공연도, 좌표, 최근 거래, K-apt 기본정보) |
 | `stats/summary.json` | 월별 거래량·중위가, 법정동별 집계, 최근 거래 |
 | `briefing/latest.json`, `briefing/archive/YYYY-MM-DD.json`, `briefing/index.json` | 일별 브리핑 |
 | `presales.json` | 청약홈 분양 공고 |
-| `developments.json`, `schools.json` | 미연계(연결 대기 상태 파일) |
+| `developments.json` | 미연계(연결 대기 상태 파일) |
 
 수집 파이프라인: API 호출 → 응답 검증 → 정규화 → 중복 제거 → 해제·정정 확인 → 통계 → 스테이징에 JSON 생성 → 스키마 검증 → 반영.
 검증에 실패하면 운영 파일을 덮어쓰지 않습니다.
@@ -134,11 +146,13 @@ python scripts/collect.py
 
 ## 7. 알려진 제한 · 미검증 사항
 
+- **전월세, K-apt 기본정보·전체 단지 목록, 분양가, 학교 위치는 가상 응답으로만 테스트했습니다.** 해당 서비스의 활용신청 후 첫 수집에서 실제 응답과 맞는지 확인이 필요합니다. 가격지수 파서는 한국부동산원의 실제 응답(키 없는 표본 5행)으로 확인했습니다.
 - 매매 실거래 조회는 2026-11-11 첫 수집에서 실제 응답으로 확인했습니다. 행정통합(2026-07) 전후 24개월이 모두 수집되었고, 단지 170곳 중 134곳이 전후 양쪽에 거래가 이어져 있으며, 읍·면 법정동은 `해룡면 신대리` 형태로 제공됩니다. 다만 두 시군구코드 중 어느 쪽이 자료를 돌려주는지는 수집 로그로 따로 확인하지 않았습니다.
 - **K-apt 기본정보와 청약홈 분양정보는 첫 수집에서 조회에 실패했습니다**(해당 서비스 활용신청이 필요한 것으로 보입니다). 연동 코드는 실제 응답으로 검증되지 않았습니다.
 - Kakao 지도·마커 클러스터·모바일 하단 시트·주변 시설 조회는 코드만 작성되었고 키가 없어 실제 동작을 확인하지 못했습니다. 좌표가 확인된 단지는 아직 0곳입니다.
 - 생활권 중 신대지구·금당지구·오천지구는 법정동 경계와 일치하지 않는 근사 구분입니다(화면에 안내 표시).
-- 미구현: 전월세 실거래, 한국부동산원 통계, 관리비, 학교 목록 수집, 통학구역 경계, 순천시 개발·고시 공고, 주택형별 분양가, 취득세 자동 계산.
+- 미구현: 관리비(단지당 월 28회 호출이 필요하고 금액 단위가 명세에 없어, K-apt 연결 후 실제 응답으로 확인한 뒤 구현 예정), 통학구역 경계(공개 API 없음), 순천시 개발·고시 공고(공개 API 없음), 취득세 자동 계산(의도적으로 제외).
+- 접근성 자동 검사(axe)는 밝은 화면 기준으로만 실행합니다. 어두운 화면의 색 대비는 자동 검사하지 않았습니다.
 - 관심 단지는 브라우저 localStorage 에만 저장됩니다. 기기 간 동기화는 없으며 내보내기·가져오기 파일로 옮길 수 있습니다.
 
 ## 8. 폴더 구조
@@ -151,6 +165,7 @@ tools/               빌드 검증·키 노출 점검·아이콘 생성
 public/data/         운영 데이터(JSON)
 data-cache/          좌표·K-apt 조회 캐시(수집 시 생성)
 tests/fixtures/      가상 테스트 데이터(make_fixture.py 로 생성)
+e2e/                 브라우저 E2E·접근성 테스트(Playwright)
 .github/workflows/   deploy.yml(수집·배포), ci.yml(PR 검증)
 ```
 

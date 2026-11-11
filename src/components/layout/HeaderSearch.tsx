@@ -33,7 +33,8 @@ export function HeaderSearch({ className }: { className?: string }) {
     if (active >= 0 && matches[active]) return go(matches[active].id)
     const t = q.trim()
     setOpen(false)
-    navigate(t ? `/trades?q=${encodeURIComponent(t)}` : '/trades')
+    // state.search: 이미 실거래 화면에 있을 때도 새 검색어를 반영하게 하는 신호
+    navigate(t ? `/trades?q=${encodeURIComponent(t)}` : '/trades', { state: { search: Date.now() } })
   }
 
   const showList = open && q.trim() !== ''

@@ -9,7 +9,8 @@ from collector import config, enrich, pipeline
 from collector.http import ApiError
 from collector.merge import Diff, find_corrections, is_active, merge_month
 from collector.normalize import assign_ids, normalize_items
-from tests.helpers import item
+from collector.normalize import normalize_rent
+from tests.helpers import item, rent_item
 
 NOW1 = datetime(2026, 11, 10, 8, 0, tzinfo=config.KST)
 NOW2 = datetime(2026, 11, 11, 8, 0, tzinfo=config.KST)
@@ -62,8 +63,15 @@ class FakeApi:
 
     def __init__(self):
         self.data: dict[str, list] = {}
+        self.rents: dict[str, list] = {}
         self.error: Exception | None = None
+        self.rent_error: Exception | None = None
         self.calls = 0
+
+    def fetch_rent_month(self, key, code, ym):
+        if self.rent_error:
+            raise self.rent_error
+        return list(self.rents.get(ym, [])) if code == "12150" else []
 
     def fetch_month(self, key, code, ym):
         self.calls += 1
@@ -93,7 +101,8 @@ class PipelineTest(unittest.TestCase):
     def run_at(self, now, env=None):
         return pipeline.run(now=now, data_dir=self.data, cache_dir=self.cache,
                             env={"MOLIT_API_KEY": "KEY"} if env is None else env,
-                            fetch_month=self.api.fetch_month, get=no_net, log=self.logs.append)
+                            fetch_month=self.api.fetch_month, fetch_rent_month=self.api.fetch_rent_month,
+                            get=no_net, log=self.logs.append)
 
     def read(self, rel):
         return json.loads((self.data / rel).read_text(encoding="utf-8"))
@@ -134,7 +143,7 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(b["newTradesTotal"], 1)
         self.assertEqual(b["newTrades"][0]["dealDate"], "2026-11-07")
         self.assertEqual(len(b["newCancellations"]), 1)
-        self.assertEqual(self.read("manifest.json")["totals"], {"trades": 26, "cancelled": 1, "complexes": 2, "geocoded": 0})
+        self.assertEqual(self.read("manifest.json")["totals"], {"trades": 26, "cancelled": 1, "complexes": 2, "geocoded": 0, "rents": 0})
         self.assertEqual([i["date"] for i in self.read("briefing/index.json")["items"]], ["2026-11-11", "2026-11-10"])
         self.assertTrue((self.data / "briefing/archive/2026-11-10.json").exists())
 
@@ -196,7 +205,79 @@ class PipelineTest(unittest.TestCase):
         self.assertFalse(list(self.tmp.rglob(".staging-*")))
 
 
+class RentTest(PipelineTest):
+    def test_normalize_rent(self):
+        r = normalize_rent(rent_item(deposit=" 5,000", monthly="45", contractType="갱신", useRRRight="사용", preDeposit="4,000", preMonthlyRent="40"))
+        self.assertEqual((r["deposit"], r["monthly"]), (5000, 45))
+        self.assertEqual((r["contractType"], r["useRenewal"], r["prevDeposit"], r["prevMonthly"]), ("갱신", True, 4000, 40))
+        j = normalize_rent(rent_item())
+        self.assertEqual((j["deposit"], j["monthly"], j["useRenewal"], j["prevDeposit"]), (20000, 0, None, None))
+        with self.assertRaises(ValueError):
+            normalize_rent(rent_item(deposit="", monthly=""))
+
+    def test_rents_collected_and_linked_to_complex(self):
+        self.api.rents = {
+            "2026-10": [rent_item(d=3), rent_item(d=9, deposit="3,000", monthly="60")],
+            "2026-11": [rent_item(apt="전월세만있는단지", umd="덕암동", jibun="300", m=11, d=2)],
+        }
+        self.assertEqual(self.run_at(NOW1), pipeline.EXIT_OK)
+        m = self.read("manifest.json")
+        self.assertEqual(m["totals"]["rents"], 3)
+        self.assertEqual([x["ym"] for x in m["rentMonths"]], ["2026-10", "2026-11"])
+        self.assertEqual({s["id"]: s["status"] for s in m["sources"]}["molit-rent"], "connected")
+        self.assertEqual(m["lawdCounts"], {"12150": 26, "46150": 0})
+        self.assertEqual(self.read("rents/2026-10.json")["source"], config.SOURCE_RENT)
+        cx = {c["name"]: c for c in self.read("complexes.json")["complexes"]}
+        self.assertEqual(len(cx), 3)  # 전월세만 있는 단지도 목록에 포함
+        self.assertEqual(cx["테스트단지"]["rentCount"], 2)  # 매매 단지와 같은 단지로 연결
+        self.assertEqual((cx["전월세만있는단지"]["tradeCount"], cx["전월세만있는단지"]["lastPrice"]), (0, None))
+        self.assertEqual(len(self.read(f"by-complex-rent/{cx['테스트단지']['id']}.json")["rents"]), 2)
+        self.assertEqual(self.read(f"by-complex/{cx['전월세만있는단지']['id']}.json")["trades"], [])
+
+    def test_rent_failure_does_not_block_trades(self):
+        self.api.rent_error = ApiError("인증 실패(HTTP 403)", auth=True)
+        self.assertEqual(self.run_at(NOW1), pipeline.EXIT_OK)
+        m = self.read("manifest.json")
+        self.assertEqual(m["totals"]["trades"], 26)
+        self.assertEqual({s["id"]: s["status"] for s in m["sources"]}["molit-rent"], "failed")
+        self.assertIn("인증 실패", m["rentMessage"])
+        self.assertFalse((self.data / "rents").exists())
+
+    def test_rent_failure_keeps_previous_rents(self):
+        self.api.rents = {"2026-10": [rent_item(d=3)]}
+        self.run_at(NOW1)
+        before = (self.data / "rents/2026-10.json").read_bytes()
+        self.api.rent_error = ApiError("요청 실패: timeout")
+        self.assertEqual(self.run_at(NOW2), pipeline.EXIT_OK)
+        self.assertEqual((self.data / "rents/2026-10.json").read_bytes(), before)
+        self.assertEqual(self.read("manifest.json")["totals"]["rents"], 1)
+
+
 class EnrichTest(unittest.TestCase):
+    def test_kapt_only_complexes_fill_the_list(self):
+        from collector import stats
+        items = {
+            "K1": {"kaptCode": "K1", "name": "거래있는단지", "addr": "순천시 왕지동 100", "umd": "왕지동", "households": 500},
+            "K2": {"kaptCode": "K2", "name": "거래없는단지", "addr": "순천시 조례동 55", "umd": "조례동", "households": 120,
+                   "useDate": "1999-05-01", "roadAddress": "순천시 조례1길 5"},
+            "K3": {"kaptCode": "K3", "name": "법정동모름", "addr": None, "umd": None},
+        }
+        base = [{"id": "c1", "name": "다른이름", "umdNm": "왕지동", "jibun": "100"}]
+        matched = enrich.match_kapt(base, items)
+        only = enrich.unmatched_kapt(items, matched)
+        self.assertEqual([e["kaptCode"] for e in only], ["K2"])  # 법정동을 모르는 단지는 넣지 않는다
+        cx = stats.build_complexes([], {}, {}, [], only)
+        self.assertEqual((cx[0]["id"], cx[0]["name"], cx[0]["umdNm"], cx[0]["tradeCount"], cx[0]["buildYear"]),
+                         ("kK2", "거래없는단지", "조례동", 0, 1999))
+        self.assertEqual(cx[0]["kapt"]["households"], 120)
+        self.assertIsNone(cx[0]["lat"])
+        cache: dict = {}
+        hit = {"documents": [{"address_name": "전남광주통합특별시 순천시 조례동 55", "x": "127.5", "y": "34.95"}]}
+        seen = []
+        enrich.geocode_complexes(cx, cache, "K", NOW1, get=lambda url, params, **k: (seen.append(params["query"]), json.dumps(hit).encode())[1])
+        self.assertEqual(seen, ["순천시 조례1길 5"])  # 지번이 없으면 도로명 주소로 좌표를 찾는다
+        self.assertEqual(cache["kK2"]["lat"], 34.95)
+
     def test_kapt_match_requires_unique_candidate(self):
         complexes = [{"id": "c1", "name": "테스트 단지", "umdNm": "왕지동", "jibun": "100"},
                      {"id": "c2", "name": "없는단지", "umdNm": "왕지동", "jibun": "999"}]
@@ -218,6 +299,44 @@ class EnrichTest(unittest.TestCase):
         self.assertEqual(len(out), 1)  # '순천향로'처럼 다른 지역 주소는 제외
         self.assertEqual(out[0]["name"], "테스트분양")
         self.assertIsNone(out[0]["receiptStart"])  # 공고에 없는 일정은 만들지 않는다
+
+    def test_presale_prices(self):
+        payload = {"data": [
+            {"HOUSE_TY": "084.9700A", "SUPLY_AR": "112.3", "SUPLY_HSHLDCO": 100, "SPSPLY_HSHLDCO": 80, "LTTOT_TOP_AMOUNT": "45,800"},
+            {"HOUSE_TY": "059.9000B", "LTTOT_TOP_AMOUNT": ""},  # 금액 없는 행은 넣지 않는다
+        ]}
+        out = enrich.fetch_presale_prices("K", "2026000001", get=lambda *a, **k: json.dumps(payload).encode())
+        self.assertEqual(out, [{"type": "084.9700A", "price": 45800, "supplyArea": "112.3", "households": 180}])
+
+    def test_price_index_parses_only_suncheon_rows(self):
+        rows = [
+            {"WRTTIME_IDTFR_ID": "202607", "DTA_VAL": 100.3491, "CLS_FULLNM": "전남광주>전남>순천시"},
+            {"WRTTIME_IDTFR_ID": "202606", "DTA_VAL": 100, "CLS_FULLNM": "전남광주>전남>순천시"},
+            {"WRTTIME_IDTFR_ID": "202606", "DTA_VAL": 99, "CLS_FULLNM": "전남광주>전남>여수시"},
+        ]
+        ok = {"SttsApiTblData": [{"head": [{"list_total_count": 3}, {"RESULT": {"CODE": "INFO-000"}}]}, {"row": rows}]}
+        out = enrich.fetch_price_index("K", get=lambda *a, **k: json.dumps(ok).encode())
+        self.assertEqual(out, [{"ym": "2026-06", "value": 100.0}, {"ym": "2026-07", "value": 100.35}])
+        err = {"RESULT": {"CODE": "ERROR-290", "MESSAGE": "인증키가 유효하지 않습니다."}}
+        with self.assertRaises(ApiError):
+            enrich.fetch_price_index("K", get=lambda *a, **k: json.dumps(err).encode())
+
+    def test_schools_filtered_to_suncheon(self):
+        items = [
+            {"schoolId": "B1", "schoolNm": "순천테스트초등학교", "schoolSe": "초등학교", "operSttus": "운영",
+             "rdnmadr": "전남광주통합특별시 순천시 테스트길 1", "latitude": "34.95", "longitude": "127.52"},
+            {"schoolId": "B2", "schoolNm": "다른시학교", "schoolSe": "중학교", "operSttus": "운영", "rdnmadr": "전남광주통합특별시 여수시 길 2"},
+            {"schoolId": "B3", "schoolNm": "폐교", "schoolSe": "초등학교", "operSttus": "폐교", "rdnmadr": "전남광주통합특별시 순천시 길 3"},
+            {"schoolId": "B4", "schoolNm": "좌표없는중학교", "schoolSe": "중학교", "operSttus": "운영", "lnmadr": "전남광주통합특별시 순천시 조례동 1"},
+        ]
+        body = {"response": {"header": {"resultCode": "00"}, "body": {"items": items, "totalCount": 4}}}
+        out = enrich.fetch_schools("K", get=lambda *a, **k: json.dumps(body).encode())
+        self.assertEqual([s["id"] for s in out], ["B4", "B1"])
+        self.assertEqual((out[1]["lat"], out[1]["lng"]), (34.95, 127.52))
+        self.assertIsNone(out[0]["lat"])  # 좌표가 없으면 만들지 않는다
+        auth = {"OpenAPI_ServiceResponse": {"cmmMsgHeader": {"returnAuthMsg": "SERVICE_KEY_IS_NOT_REGISTERED_ERROR"}}}
+        with self.assertRaises(ApiError):
+            enrich.fetch_schools("K", get=lambda *a, **k: json.dumps(auth).encode())
 
     def test_geocode_no_result_makes_no_coordinate(self):
         cache: dict = {}

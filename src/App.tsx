@@ -6,6 +6,7 @@ import { LoadingBlock, NotAvailable } from '@/components/ui/states'
 const HomePage = lazy(() => import('@/pages/HomePage'))
 const MapPage = lazy(() => import('@/pages/MapPage'))
 const TradesPage = lazy(() => import('@/pages/TradesPage'))
+const RentsPage = lazy(() => import('@/pages/RentsPage'))
 const ComplexPage = lazy(() => import('@/pages/ComplexPage'))
 const ComparePage = lazy(() => import('@/pages/ComparePage'))
 const FavoritesPage = lazy(() => import('@/pages/FavoritesPage'))
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/trades" element={<TradesPage />} />
+          <Route path="/rents" element={<RentsPage />} />
           <Route path="/complex/:id" element={<ComplexPage />} />
           <Route path="/compare" element={<ComparePage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
