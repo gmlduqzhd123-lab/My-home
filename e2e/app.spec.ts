@@ -9,7 +9,7 @@ function watchErrors(page: Page): string[] {
   return errors
 }
 
-const ROUTES = ['/', '/trades', '/rents', '/map', '/compare', '/favorites', '/briefing', '/presales', '/living', '/calculator', '/about']
+const ROUTES = ['/', '/trades', '/rents', '/map', '/compare', '/favorites', '/briefing', '/alerts', '/presales', '/living', '/calculator', '/about']
 
 test.describe('핵심 사용 흐름', () => {
   test.skip(({ isMobile }) => isMobile, '데스크톱 레이아웃 기준 흐름')
@@ -114,6 +114,30 @@ test.describe('화면별 점검', () => {
       expect(errors).toEqual([])
     })
   }
+})
+
+test('청약 알림: 새 공고 확인과 캘린더 파일', async ({ page, request }) => {
+  await page.goto('/')
+  // 처음 방문: 최근 공고가 새 공고로 표시되고 홈에 안내가 뜬다
+  await expect(page.getByRole('link', { name: /청약 알림, 새 공고 \d+건/ })).toBeVisible()
+  await page.getByRole('link', { name: /새 청약 공고 \d+건 —/ }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('순천 청약 알림')
+  await expect(page.getByText(/접수 중 · /).first()).toBeVisible()
+  await expect(page.getByText(/접수 D-\d+/).first()).toBeVisible()
+  await page.getByRole('button', { name: /모두 확인/ }).click()
+  await expect(page.getByText('새로 확인된 공고 0건')).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('새로 확인된 공고 0건')).toBeVisible() // 확인 상태가 저장된다
+  await expect(page.getByRole('link', { name: '청약 알림', exact: true }).first()).toBeVisible()
+
+  // 캘린더 파일이 실제로 내려오고 형식이 맞는지
+  const href = await page.getByRole('link', { name: /일정 파일 받기/ }).getAttribute('href')
+  const res = await request.get(href!)
+  expect(res.ok()).toBeTruthy()
+  const ics = await res.text()
+  expect(ics.startsWith('BEGIN:VCALENDAR')).toBeTruthy()
+  expect(ics).toContain('BEGIN:VEVENT')
+  expect(ics).toContain('BEGIN:VALARM')
 })
 
 test('모바일: 하단 메뉴로 이동한다', async ({ page, isMobile }) => {

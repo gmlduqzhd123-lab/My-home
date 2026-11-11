@@ -1,7 +1,8 @@
-import { AlertTriangle, Clock, FlaskConical, Heart, Menu, Monitor, Moon, PlugZap, Sun, X } from 'lucide-react'
+import { AlertTriangle, Bell, Clock, FlaskConical, Heart, Menu, Monitor, Moon, PlugZap, Sun, X } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { ALL_ZONE, ZONES } from '@/config/zones'
+import { useAlertNotifier, useAlerts } from '@/hooks/useAlerts'
 import { useTheme } from '@/hooks/useTheme'
 import { cn } from '@/lib/cn'
 import { freshness, useManifest } from '@/lib/data'
@@ -167,8 +168,34 @@ function SideLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void
   )
 }
 
+/** 상단 종: 마지막 확인 이후 새 청약 공고 수 */
+function AlertBell() {
+  const { fresh } = useAlerts()
+  const n = fresh.length
+  return (
+    <Link
+      to="/alerts"
+      title="청약 알림"
+      className="relative flex size-9 items-center justify-center rounded-lg text-white/85 hover:bg-white/10"
+    >
+      <Bell className="size-[18px]" aria-hidden="true" />
+      {/* 보이는 숫자 배지는 장식으로 두고, 읽어 주는 이름은 문장으로 제공한다 */}
+      <span className="sr-only">{n > 0 ? `청약 알림, 새 공고 ${n}건` : '청약 알림'}</span>
+      {n > 0 && (
+        <span
+          aria-hidden="true"
+          className="num absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#ffd166] px-1 text-[10px] font-extrabold text-[#14233b]"
+        >
+          {n > 9 ? '9+' : n}
+        </span>
+      )}
+    </Link>
+  )
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   useTheme()
+  useAlertNotifier()
   const res = useManifest()
   const manifest = res.status === 'ok' ? res.data : null
   const favCount = usePrefs((s) => s.favorites.length)
@@ -214,6 +241,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               관심 단지
               <span className="num rounded-full bg-white/15 px-1.5 text-[11px]">{favCount}</span>
             </Link>
+            <AlertBell />
             <ThemeToggle />
             <DataStamp manifest={manifest} />
           </div>

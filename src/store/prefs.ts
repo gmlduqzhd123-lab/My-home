@@ -13,6 +13,12 @@ export interface PrefsState {
   favorites: string[]
   favoriteZones: string[]
   compare: string[]
+  /** 청약 알림을 마지막으로 '모두 확인'한 수집 시각 */
+  alertsSeenAt: string | null
+  /** 브라우저 알림 사용 여부(권한은 브라우저가 따로 관리) */
+  notify: boolean
+  markAlertsSeen: (iso: string) => void
+  setNotify: (on: boolean) => void
   setTheme: (t: Theme) => void
   setZone: (id: string) => void
   toggleFavorite: (id: string) => void
@@ -39,6 +45,10 @@ export const usePrefs = create<PrefsState>()(
       favorites: [],
       favoriteZones: [],
       compare: [],
+      alertsSeenAt: null,
+      notify: false,
+      markAlertsSeen: (alertsSeenAt) => set({ alertsSeenAt }),
+      setNotify: (notify) => set({ notify }),
       setTheme: (theme) => set({ theme }),
       setZone: (zoneId) => set({ zoneId }),
       toggleFavorite: (id) =>
@@ -72,6 +82,8 @@ export const usePrefs = create<PrefsState>()(
         favorites: s.favorites,
         favoriteZones: s.favoriteZones,
         compare: s.compare,
+        alertsSeenAt: s.alertsSeenAt,
+        notify: s.notify,
       }),
     },
   ),

@@ -38,7 +38,7 @@ def write_json(path: Path, obj, *, pretty: bool = False) -> None:
 def commit(staging: Path, dest: Path) -> int:
     """검증을 통과한 스테이징 디렉터리의 파일을 운영 데이터 디렉터리로 옮긴다."""
     n = 0
-    for src in sorted(staging.rglob("*.json")):
+    for src in sorted(p for p in staging.rglob("*") if p.is_file()):  # JSON 과 캘린더(.ics) 등 모든 산출물
         target = dest / src.relative_to(staging)
         target.parent.mkdir(parents=True, exist_ok=True)
         _replace(src, target)

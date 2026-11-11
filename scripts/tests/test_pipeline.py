@@ -147,6 +147,14 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(self.read("supply.json")["items"], [])
         self.assertIsNone(self.read("complexes.json")["complexes"][0]["building"])
 
+    def test_alert_files_written(self):
+        self.assertEqual(self.run_at(NOW1), pipeline.EXIT_OK)
+        a = self.read("alerts.json")
+        self.assertEqual((a["items"], a["newIds"]), ([], []))
+        ics = (self.data / "presales.ics").read_text(encoding="utf-8")
+        self.assertTrue(ics.startswith("BEGIN:VCALENDAR"))
+        self.assertFalse(list(self.tmp.rglob(".staging-*")))
+
     def test_second_run_briefs_only_changes(self):
         self.run_at(NOW1)
         self.api.data["2026-11"].append(item(m=11, d=7, amount="33,300"))

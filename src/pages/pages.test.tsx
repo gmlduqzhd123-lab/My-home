@@ -57,7 +57,7 @@ const table = async () => within(await screen.findByRole('table', { name: '아�
 
 beforeEach(() => {
   clearDataCache()
-  usePrefs.setState({ favorites: [], favoriteZones: [], compare: [], zoneId: 'all', theme: 'light' })
+  usePrefs.setState({ favorites: [], favoriteZones: [], compare: [], zoneId: 'all', theme: 'light', alertsSeenAt: null, notify: false })
 })
 
 describe('실거래 화면', () => {
@@ -166,6 +166,56 @@ describe('홈·브리핑', () => {
     open('/briefing', { ...okFiles, 'briefing/latest.json': { ...briefing, status: 'failed', headlines: ['조회에 실패했습니다.'], newTrades: [], newTradesTotal: 0 } })
     expect((await screen.findAllByText('조회 실패')).length).toBeGreaterThan(0)
     expect(screen.queryByText('새로 확인된 거래 없음')).not.toBeInTheDocument()
+  })
+})
+
+describe('청약 알림', () => {
+  const day = (n: number) => new Date(Date.now() + n * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' })
+  const alert = (o: Record<string, unknown>) => ({
+    id: 'x', kind: '청약홈 분양', title: '분양', location: '전남광주통합특별시 순천시 왕지동 1', announceDate: day(-3), receiptStart: null, receiptEnd: null,
+    winnerDate: null, contractStart: null, contractEnd: null, households: 500, url: 'https://www.applyhome.co.kr/', firstSeenAt: '2026-01-01T08:00:00+09:00', ...o,
+  })
+  const files = {
+    ...okFiles,
+    'alerts.json': {
+      status: 'ok', generatedAt: '2026-11-11T08:00:00+09:00', sources: { presale: 'ok', lh: 'ok' }, newIds: ['new'],
+      items: [
+        alert({ id: 'new', title: '새로 뜬 분양단지', receiptStart: day(6), receiptEnd: day(8), firstSeenAt: '2026-11-11T08:00:00+09:00' }),
+        alert({ id: 'open', title: '접수 중인 분양단지', receiptStart: day(-1), receiptEnd: day(1), announceDate: day(-30) }),
+        alert({ id: 'done', title: '끝난 분양단지', receiptStart: day(-40), receiptEnd: day(-38), announceDate: day(-60) }),
+      ],
+    },
+  }
+
+  it('새 공고와 일정을 보여 주고, 확인하면 새 공고 표시가 사라진다', async () => {
+    const user = userEvent.setup()
+    usePrefs.setState({ alertsSeenAt: '2026-11-10T08:00:00+09:00' })
+    open('/alerts', files)
+    expect(await screen.findByText('새로 확인된 공고 1건')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '청약 알림, 새 공고 1건' })).toBeInTheDocument() // 상단 종
+    expect(screen.getAllByText('접수 D-6')).toHaveLength(2) // 새 공고 목록과 일정 목록 양쪽에 표시
+    expect(screen.getByText('접수 중 · 마감 D-1')).toBeInTheDocument()
+    expect(screen.queryByText('끝난 분양단지')).not.toBeInTheDocument() // 마감 공고는 접혀 있다
+    await user.click(screen.getByRole('button', { name: /마감된 공고 1건 보기/ }))
+    expect(screen.getByText('끝난 분양단지')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /모두 확인/ }))
+    expect(await screen.findByText('새로 확인된 공고 0건')).toBeInTheDocument()
+    expect(usePrefs.getState().alertsSeenAt).toBe('2026-11-11T08:00:00+09:00')
+    expect(screen.queryByRole('link', { name: /새 공고 \d+건/ })).not.toBeInTheDocument() // 종의 숫자도 사라진다
+  })
+
+  it('캘린더 구독 주소를 제공한다', async () => {
+    open('/alerts', files)
+    const link = await screen.findByRole('link', { name: /캘린더 구독/ })
+    expect(link.getAttribute('href')).toMatch(/^webcal:\/\/.*data\/presales\.ics$/)
+    expect(screen.getByRole('link', { name: /일정 파일 받기/ }).getAttribute('href')).toMatch(/data\/presales\.ics$/)
+  })
+
+  it('공고가 수집되지 않았으면 연결 대기를 안내하되 알림 방법은 보여 준다', async () => {
+    open('/alerts')
+    expect(await screen.findByText('청약 공고 연결 대기 중')).toBeInTheDocument()
+    expect(screen.getByText('알림 받는 방법')).toBeInTheDocument()
   })
 })
 

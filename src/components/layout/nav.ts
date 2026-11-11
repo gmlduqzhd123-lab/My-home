@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bell,
   Building2,
   Calculator,
   Database,
@@ -29,6 +30,7 @@ export const SIDE_NAV: NavItem[] = [
   { to: '/compare', label: '비교', icon: GitCompareArrows },
   { to: '/favorites', label: '관심 단지', icon: Heart },
   { to: '/briefing', label: '브리핑', icon: Newspaper },
+  { to: '/alerts', label: '청약 알림', icon: Bell },
   { to: '/presales', label: '분양', icon: Building2, beta: true },
   { to: '/living', label: '생활환경', icon: School, beta: true },
   { to: '/calculator', label: '계산기', icon: Calculator },

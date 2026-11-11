@@ -37,6 +37,7 @@ COMPLEXES = [
     ("[가상] 덕암한울", "덕암동", "9012", 1996, [(59.4, 10500), (84.4, 14000)], (34.9408, 127.4958)),
 ]
 COORDS = {f"순천시 {c[1]} {c[2]}": c[5] for c in COMPLEXES}
+FIX_STATE = {"today": False}  # 두 번째(오늘) 수집 여부 — 새 공고를 흉내 내는 데 쓴다
 # 가상 법정동 코드(뒤 5자리)
 FIX_DONG = {n: f"{10100 + i * 100}" for i, n in enumerate(sorted({c[1] for c in COMPLEXES}))}
 # 수집 기간에 거래가 없어 K-apt 단지 목록으로만 확인되는 가상 단지 (단지명, 읍면동, 리, 도로명주소, 좌표)
@@ -119,12 +120,19 @@ def fake_get(url, params=None, **_):
                 "convenientFacility": "관공서() 병원() 대형상가()", "educationFacility": "초등학교()", "kaptdWtimebus": "5분이내"}
         return json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"item": item}}}).encode()
     if url == config.APPLYHOME_URL:
-        row = {"HOUSE_MANAGE_NO": "F1", "PBLANC_NO": "F1", "HOUSE_NM": "[가상] 순천 테스트 분양단지",
-               "HSSPLY_ADRES": "전남광주통합특별시 순천시 왕지동 9999", "TOT_SUPLY_HSHLDCO": 512,
-               "RCRIT_PBLANC_DE": "2026-10-16", "RCEPT_BGNDE": "2026-10-27", "RCEPT_ENDDE": "2026-10-29",
-               "PRZWNER_PRESNATN_DE": "2026-11-05", "CNTRCT_CNCLS_BGNDE": "2026-11-17", "CNTRCT_CNCLS_ENDDE": "2026-11-19",
-               "MVN_PREARNGE_YM": "202903", "PBLANC_URL": "https://www.applyhome.co.kr/"}
-        return json.dumps({"data": [row]}).encode()
+        today = config.now_kst().date()
+        d = lambda n: (today + timedelta(days=n)).isoformat()  # noqa: E731
+        rows = [{"HOUSE_MANAGE_NO": "F1", "PBLANC_NO": "F1", "HOUSE_NM": "[가상] 순천 테스트 분양단지",
+                 "HSSPLY_ADRES": "전남광주통합특별시 순천시 왕지동 9999", "TOT_SUPLY_HSHLDCO": 512,
+                 "RCRIT_PBLANC_DE": d(-12), "RCEPT_BGNDE": d(-1), "RCEPT_ENDDE": d(1),
+                 "PRZWNER_PRESNATN_DE": d(8), "CNTRCT_CNCLS_BGNDE": d(20), "CNTRCT_CNCLS_ENDDE": d(22),
+                 "MVN_PREARNGE_YM": "202903", "PBLANC_URL": "https://www.applyhome.co.kr/"}]
+        if FIX_STATE["today"]:  # 오늘 수집에서 새로 확인되는 공고
+            rows.append({"HOUSE_MANAGE_NO": "F2", "PBLANC_NO": "F2", "HOUSE_NM": "[가상] 순천 새소식 분양단지",
+                         "HSSPLY_ADRES": "전남광주통합특별시 순천시 조례동 9998", "TOT_SUPLY_HSHLDCO": 284,
+                         "RCRIT_PBLANC_DE": d(0), "RCEPT_BGNDE": d(10), "RCEPT_ENDDE": d(12),
+                         "PRZWNER_PRESNATN_DE": d(19), "MVN_PREARNGE_YM": "202909", "PBLANC_URL": "https://www.applyhome.co.kr/"})
+        return json.dumps({"data": rows}).encode()
     if url == supply.BJDONG_ZIP_URL:
         import io, zipfile
         names = sorted({c[1] for c in COMPLEXES})
@@ -227,6 +235,7 @@ def main() -> None:
     quiet = lambda s: None  # noqa: E731
     assert pipeline.run(now=yesterday, data_dir=OUT, cache_dir=CACHE, env=env, fetch_month=fetch_month, fetch_rent_month=fetch_rent_month, get=fake_get, log=quiet) == 0
     state["today"] = True
+    FIX_STATE["today"] = True
     prev = data[yms[-2]][0]  # 지난달 거래 1건이 오늘 해제로 확인됨
     prev["cdealType"], prev["cdealDay"] = "O", f"{now.year % 100:02d}.{now.month:02d}.{max(1, now.day - 1):02d}"
     assert pipeline.run(now=now, data_dir=OUT, cache_dir=CACHE, env=env, fetch_month=fetch_month, fetch_rent_month=fetch_rent_month, get=fake_get, log=print) == 0

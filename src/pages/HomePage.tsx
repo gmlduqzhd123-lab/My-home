@@ -1,4 +1,4 @@
-import { ArrowRight, Building2, MapPin, Newspaper } from 'lucide-react'
+import { ArrowRight, Bell, Building2, MapPin, Newspaper } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { IndexChart, MedianVolumeChart, PopulationChart, UnsoldChart } from '@/components/charts'
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge, Card, CardBody, CardHeader, Skeleton } from '@/components/ui/primitives'
 import { EmptyState, NotAvailable, PendingState, ResourceView } from '@/components/ui/states'
 import { ZONES } from '@/config/zones'
+import { useAlerts } from '@/hooks/useAlerts'
 import {
   freshness,
   loadBriefing,
@@ -135,6 +136,7 @@ export default function HomePage() {
   const populationOk = population.status === 'ok' && population.data.status === 'ok' && population.data.items.length > 1
   const setZone = usePrefs((s) => s.setZone)
   const navigate = useNavigate()
+  const { fresh: freshAlerts } = useAlerts()
 
   return (
     <div className="space-y-4">
@@ -159,6 +161,19 @@ export default function HomePage() {
           </Button>
         </div>
       </section>
+
+      {freshAlerts.length > 0 && (
+        <Link
+          to="/alerts"
+          className="flex items-center gap-2.5 rounded-2xl border border-accent/40 bg-accent-soft px-4 py-3 text-sm font-semibold text-ink hover:brightness-95"
+        >
+          <Bell className="size-4 shrink-0 text-accent-ink" aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate">
+            새 청약 공고 {freshAlerts.length}건 — {freshAlerts[0].title}
+          </span>
+          <ArrowRight className="size-4 shrink-0 text-accent-ink" aria-hidden="true" />
+        </Link>
+      )}
 
       {mres.status === 'ok' && !ready && (
         <Card>

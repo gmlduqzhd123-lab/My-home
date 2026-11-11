@@ -83,6 +83,23 @@ jobs:
             git push
           fi
 
+      # 새 청약 공고가 수집되면 이슈를 만든다 → 저장소를 Watch 한 사람에게 GitHub 가 메일을 보낸다.
+      - name: 새 청약 공고 알림(이슈)
+        if: github.event_name != 'push' && inputs.skip_collect != true && steps.collect.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          site="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
+          python scripts/notify_new.py public/data/alerts.json "$site" > /tmp/notice.md
+          if [ -s /tmp/notice.md ]; then
+            head -n 1 /tmp/notice.md > /tmp/title.txt
+            tail -n +2 /tmp/notice.md > /tmp/body.md
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$(cat /tmp/title.txt)" --body-file /tmp/body.md
+          else
+            echo "새 청약 공고 없음"
+          fi
+
       - name: 타입 검사 · 린트 · 테스트
         run: |
           npm run typecheck

@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Mapping
 
-from . import briefing, config, enrich, molit, stats, supply, validate
+from . import alerts, briefing, config, enrich, molit, stats, supply, validate
 from .http import ApiError, http_get
 from .merge import MUTABLE, RENT_MUTABLE, Diff, is_active, merge_month
 from .normalize import assign_ids, assign_rent_ids, land_codes, normalize_items, normalize_rent
@@ -80,9 +80,14 @@ def init_data(data_dir: Path, now: datetime) -> None:
                          "source": {"name": "전국초중등학교위치표준데이터",
                                     "url": "https://www.data.go.kr/data/15021148/standard.do"}, "items": []},
     }
+    defaults["alerts.json"] = {"status": "pending", "generatedAt": now.isoformat(),
+                               "sources": {"presale": "pending", "lh": "pending"}, "items": [], "newIds": []}
     for name, obj in defaults.items():
         if not (data_dir / name).exists():
             write_json(data_dir / name, obj, pretty=True)
+    ics = data_dir / "presales.ics"
+    if not ics.exists():  # 구독 주소가 처음부터 유효하도록 빈 캘린더를 둔다
+        ics.write_bytes(alerts.build_ics([], now).encode("utf-8"))
 
 
 def collect_month(key: str, ym: str, existing: list[dict], now_iso: str, fetch_month: Callable,
@@ -306,6 +311,12 @@ def run(
         log(f"[경고] LH 공고 조회 실패: {e}")
         lh_file.update({"status": "failed", "message": "LH 분양·임대 공고 조회에 실패했습니다. 활용신청 승인 여부를 확인하세요."})
 
+    # 청약 알림 목록·캘린더 (청약홈 분양 + LH 공고)
+    alerts_file = alerts.build(presale_file["items"], lh_file["items"], read_json(data_dir / "alerts.json"), now_iso,
+                               presale_status=presale_file["status"], lh_status=lh_file["status"])
+    if alerts_file["newIds"]:
+        log(f"새로 확인된 청약 공고 {len(alerts_file['newIds'])}건")
+
     # 주택 인허가(법정동별) — 향후 공급 예정 사업
     permit_file = {"status": "pending", "fetchedAt": None, "message": None, "items": [], "coverage": None,
                    **(read_json(data_dir / "supply.json") or {}),
@@ -508,6 +519,9 @@ def run(
         write_json(staging / "schools.json", school_file)
         write_json(staging / "developments.json", lh_file, pretty=True)
         write_json(staging / "supply.json", permit_file)
+        write_json(staging / "alerts.json", alerts_file)
+        ics = staging / "presales.ics"
+        ics.write_bytes(alerts.build_ics(alerts_file["items"], now).encode("utf-8"))
         write_json(staging / "stats" / "unsold.json", unsold_file)
         write_json(staging / "stats" / "population.json", population_file)
         write_json(staging / "briefing" / "latest.json", brief)

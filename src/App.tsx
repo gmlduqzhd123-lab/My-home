@@ -12,6 +12,7 @@ const ComplexPage = lazy(() => import('@/pages/ComplexPage'))
 const ComparePage = lazy(() => import('@/pages/ComparePage'))
 const FavoritesPage = lazy(() => import('@/pages/FavoritesPage'))
 const BriefingPage = lazy(() => import('@/pages/BriefingPage'))
+const AlertsPage = lazy(() => import('@/pages/AlertsPage'))
 const PresalesPage = lazy(() => import('@/pages/PresalesPage'))
 const LivingPage = lazy(() => import('@/pages/LivingPage'))
 const CalculatorPage = lazy(() => import('@/pages/CalculatorPage'))
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/briefing" element={<BriefingPage />} />
           <Route path="/briefing/:date" element={<BriefingPage />} />
+          <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/presales" element={<PresalesPage />} />
           <Route path="/living" element={<LivingPage />} />
           <Route path="/calculator" element={<CalculatorPage />} />

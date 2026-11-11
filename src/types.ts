@@ -247,6 +247,33 @@ export interface BuildingInfo {
   fetchedAt: string
 }
 
+/** 청약 알림 항목(청약홈 분양 공고 또는 LH 공고) */
+export interface AlertItem {
+  id: string
+  kind: string
+  title: string
+  location: string | null
+  announceDate: string | null
+  receiptStart: string | null
+  receiptEnd: string | null
+  winnerDate: string | null
+  contractStart: string | null
+  contractEnd: string | null
+  households: number | null
+  url: string | null
+  /** 수집기가 이 공고를 처음 확인한 시각 */
+  firstSeenAt: string
+}
+
+export interface AlertsFile {
+  status: 'ok' | 'pending' | 'failed'
+  generatedAt: string
+  sources: { presale: string; lh: string }
+  items: AlertItem[]
+  /** 마지막 수집에서 처음 확인된 공고 */
+  newIds: string[]
+}
+
 /** 주택 인허가 사업(건축HUB) */
 export interface PermitItem {
   id: string

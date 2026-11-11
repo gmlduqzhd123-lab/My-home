@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type {
+  AlertsFile,
   Briefing,
   BriefingIndex,
   ComplexFile,
@@ -96,6 +97,7 @@ export const loadDevelopments = () => loadJson<DevelopmentsFile>('developments.j
 export const loadSchools = () => loadJson<SchoolsFile>('schools.json')
 export const loadPriceIndex = () => loadJson<PriceIndexFile>('stats/price-index.json')
 export const loadSupply = () => loadJson<SupplyFile>('supply.json')
+export const loadAlerts = () => loadJson<AlertsFile>('alerts.json')
 export const loadUnsold = () => loadJson<UnsoldFile>('stats/unsold.json')
 export const loadPopulation = () => loadJson<PopulationFile>('stats/population.json')
 
