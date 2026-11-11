@@ -21,8 +21,9 @@ REGION_NAME = "순천시"
 # 법정동 시군구코드(앞 5자리).
 #  - 12150: 전남광주통합특별시 순천시 (2026-07-01 신설, 행정표준코드관리시스템 확인)
 #  - 46150: 전라남도 순천시 (2026-07-01 폐지)
-# 실거래 API 가 통합 이전 계약분을 어느 코드로 제공하는지 공식 안내가 없어 두 코드를 모두 조회하고 중복을 제거한다.
-LAWD_CODES = [c.strip() for c in os.environ.get("SUNCHEON_LAWD_CODES", "12150,46150").split(",") if c.strip()]
+# 2026-11-11 실제 수집으로 확인: 12150 이 통합 이전 계약분(2021-12~)까지 모두 제공하고 46150 은 0건이다.
+# 그래서 기본값은 12150 하나만 조회한다. 여러 코드를 쉼표로 지정하면 모두 조회해 중복을 제거한다.
+LAWD_CODES = [c.strip() for c in os.environ.get("SUNCHEON_LAWD_CODES", "12150").split(",") if c.strip()]
 PRIMARY_LAWD = LAWD_CODES[0]
 
 # 국토교통부 아파트 매매 실거래가 상세 자료 (https://www.data.go.kr/data/15126468/openapi.do)

@@ -118,7 +118,7 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(m["generatedAt"], NOW1.isoformat())
         self.assertEqual(m["totals"]["trades"], 26)
         self.assertEqual([x["ym"] for x in m["months"]], ["2026-10", "2026-11"])
-        self.assertEqual(self.api.calls, 24 * 2)  # 첫 실행은 24개월 × 지역코드 2개
+        self.assertEqual(self.api.calls, 24 * len(config.LAWD_CODES))  # 첫 실행은 24개월 × 지역코드 수
         self.assertEqual(self.read("briefing/latest.json")["status"], "initial")
         month = self.read("trades/2026-10.json")
         self.assertEqual(month["source"], config.SOURCE_TRADE)
@@ -225,7 +225,7 @@ class RentTest(PipelineTest):
         self.assertEqual(m["totals"]["rents"], 3)
         self.assertEqual([x["ym"] for x in m["rentMonths"]], ["2026-10", "2026-11"])
         self.assertEqual({s["id"]: s["status"] for s in m["sources"]}["molit-rent"], "connected")
-        self.assertEqual(m["lawdCounts"], {"12150": 26, "46150": 0})
+        self.assertEqual(m["lawdCounts"], {"12150": 26})
         self.assertEqual(self.read("rents/2026-10.json")["source"], config.SOURCE_RENT)
         cx = {c["name"]: c for c in self.read("complexes.json")["complexes"]}
         self.assertEqual(len(cx), 3)  # 전월세만 있는 단지도 목록에 포함
