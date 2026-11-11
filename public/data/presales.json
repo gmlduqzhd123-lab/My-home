@@ -1,10 +1,10 @@
 {
-  "status": "pending",
+  "status": "failed",
   "fetchedAt": null,
-  "message": null,
+  "message": "청약홈 분양정보 조회에 실패했습니다. 활용신청 승인 여부를 확인하세요.",
+  "items": [],
   "source": {
     "name": "한국부동산원 청약홈 분양정보 조회 서비스",
     "url": "https://www.data.go.kr/data/15098547/openapi.do"
-  },
-  "items": []
+  }
 }
