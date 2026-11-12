@@ -1,6 +1,10 @@
 {
-  "status": "pending",
+  "status": "failed",
   "fetchedAt": null,
-  "message": "개발·고시 공고는 공식 공개 API 가 확인되지 않아 아직 연계하지 않았습니다.",
-  "items": []
+  "message": "LH 분양·임대 공고 조회에 실패했습니다. 활용신청 승인 여부를 확인하세요.",
+  "items": [],
+  "source": {
+    "name": "한국토지주택공사 분양임대공고문 조회 서비스",
+    "url": "https://www.data.go.kr/data/15058530/openapi.do"
+  }
 }

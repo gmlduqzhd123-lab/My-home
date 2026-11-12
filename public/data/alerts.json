@@ -1,10 +1,1 @@
-{
-  "status": "pending",
-  "generatedAt": "2026-11-11T16:10:47+09:00",
-  "sources": {
-    "presale": "pending",
-    "lh": "pending"
-  },
-  "items": [],
-  "newIds": []
-}
+{"status":"failed","generatedAt":"2026-11-12T12:15:10+09:00","sources":{"presale":"failed","lh":"failed"},"primed":false,"items":[],"newIds":[]}
