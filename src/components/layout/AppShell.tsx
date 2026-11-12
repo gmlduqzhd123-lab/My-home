@@ -220,7 +220,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         본문으로 건너뛰기
       </a>
       <header className="sticky top-0 z-40 border-b border-line bg-surface">
-        <div className="flex h-14 items-center gap-2 px-3 sm:gap-3 sm:px-4">
+        <div className="flex h-14 items-center gap-1.5 px-2 sm:gap-3 sm:px-4">
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
@@ -232,7 +232,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Logo />
           <HeaderSearch className="ml-1 min-w-0 flex-1 lg:max-w-md" />
           <ZoneSelect className="hidden md:block" />
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
             <Link
               to="/favorites"
               className="hidden h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold text-ink hover:bg-surface-2 md:flex"
@@ -241,8 +241,18 @@ export function AppShell({ children }: { children: ReactNode }) {
               관심 단지
               <span className="num rounded-full bg-surface-2 px-1.5 text-[11px] text-muted">{favCount}</span>
             </Link>
+            {/* 엽쌤의 다른 앱과 같은 상단 버튼: public/ys-install.js, public/ys-qr.js 가 연결 */}
+            <button type="button" data-ys-install="" className="flex h-9 shrink-0 cursor-pointer items-center whitespace-nowrap rounded-lg px-1 text-[13px] font-semibold text-ink hover:bg-surface-2 sm:px-2">
+              📲<span className="ml-0.5 hidden sm:inline">앱&nbsp;</span>설치
+            </button>
+            <button type="button" data-qr="" aria-label="QR 코드로 접속" className="flex h-9 shrink-0 cursor-pointer items-center whitespace-nowrap rounded-lg px-1 text-[13px] font-semibold text-ink hover:bg-surface-2 sm:px-2">
+              📱 QR
+            </button>
             <AlertBell />
-            <ThemeToggle />
+            {/* 좁은 휴대폰에서는 설치·QR 자리를 위해 테마 버튼을 ☰ 메뉴 안으로 옮긴다 */}
+            <span className="hidden sm:contents">
+              <ThemeToggle />
+            </span>
             <DataStamp manifest={manifest} />
           </div>
         </div>
@@ -267,6 +277,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           className={cn('min-w-0 flex-1', isMap ? '' : 'mx-auto w-full max-w-6xl px-3 py-4 pb-24 sm:px-5 sm:py-6 lg:pb-10')}
         >
           {children}
+          {!isMap && (
+            <p className="mt-10 text-center text-[12px] text-muted">
+              © 2026 엽쌤. All rights reserved. ·{' '}
+              <a href="https://gmlduqzhd123-lab.github.io/YScode/" className="underline underline-offset-2 hover:text-ink">
+                엽쌤의 다른 앱 보기 →
+              </a>
+            </p>
+          )}
         </main>
       </div>
 
@@ -298,6 +316,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-surface p-3 shadow-xl">
             <div className="mb-2 flex items-center justify-between px-1">
               <span className="text-[15px] font-extrabold text-ink">순천집 ZIP</span>
+              <span className="ml-auto sm:hidden">
+                <ThemeToggle />
+              </span>
               <button
                 type="button"
                 onClick={() => setMenuOpen(false)}

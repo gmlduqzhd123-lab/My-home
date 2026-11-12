@@ -57,8 +57,10 @@ export default defineConfig(({ mode }) => ({
     ...(mode === 'fixture' ? [fixtureData()] : []),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'ys-install.js', 'ys-qr.js', 'qr.svg'],
       manifest: {
+        // 같은 주소(github.io)의 다른 엽쌤 앱과 구별되는 고유 이름표
+        id: '/My-home/',
         name: '순천집 ZIP — 순천 부동산의 모든 것',
         short_name: '순천집 ZIP',
         description: '순천의 모든 집, 모든 가격, 모든 변화를 한눈에.',
