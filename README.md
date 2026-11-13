@@ -61,7 +61,11 @@ npm run dev:fixture
 - 공공데이터포털 키는 계정당 하나이며 활용신청한 서비스에만 동작합니다. 신청 직후에는 반영까지 시간이 걸릴 수 있습니다.
 - 지도 화면(배경지도)과 단지 주변 시설은 [OpenStreetMap](https://www.openstreetmap.org/copyright) 을 쓰므로 **키가 필요 없습니다**. 주변 시설은 브라우저가 Overpass API 에 직접 조회합니다.
 - 단지 좌표는 수집할 때 OpenStreetMap [Nominatim](https://nominatim.org/) 에서 **단지명**으로 찾습니다(키 불필요). 이용 정책에 맞춰 초당 1회, 한 번 수집에 최대 400회만 조회하고 결과를 `data-cache/geocode.json` 에 저장해 다시 쓰므로, 처음에는 며칠에 걸쳐 채워집니다.
-- 브이월드 지오코더는 해외 서버(GitHub Actions)에서 접속이 막혀(HTTP 502) 쓰지 않습니다.
+- 브이월드 지오코더는 해외 서버(GitHub Actions)에서 접속이 막혀(HTTP 502) 수집기에서는 쓰지 않습니다.
+  대신 **운영자 화면** `https://<계정>.github.io/<저장소>/#/tools/geocode` 를 국내 인터넷에서 열고 브이월드 키를 넣으면, 위치가 없는 단지를
+  지번 주소로 찾아 `geocode-manual.json` 파일로 내려받을 수 있습니다. 이 파일을 저장소 `data-cache/` 폴더에 올리면(GitHub 웹 화면 → Add file →
+  Upload files) 바로 수집이 다시 돌아 지도에 반영되며, 자동 검색 결과보다 우선합니다. 키는 그 화면에서만 쓰고 저장하지 않습니다.
+  브이월드 인증키의 서비스 URL 에 `https://<계정>.github.io` 를 등록해야 합니다.
 - 선택 키가 없어도 실거래 검색·차트·비교·관심·브리핑은 모두 동작합니다.
 
 ## 3. 내 컴퓨터에서 데이터 수집해 보기

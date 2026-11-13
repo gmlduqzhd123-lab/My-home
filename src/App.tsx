@@ -17,6 +17,7 @@ const PresalesPage = lazy(() => import('@/pages/PresalesPage'))
 const LivingPage = lazy(() => import('@/pages/LivingPage'))
 const CalculatorPage = lazy(() => import('@/pages/CalculatorPage'))
 const AboutPage = lazy(() => import('@/pages/AboutPage'))
+const GeocodeToolPage = lazy(() => import('@/pages/GeocodeToolPage'))
 
 export default function App() {
   const { pathname } = useLocation()
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/living" element={<LivingPage />} />
           <Route path="/calculator" element={<CalculatorPage />} />
           <Route path="/about" element={<AboutPage />} />
+          <Route path="/tools/geocode" element={<GeocodeToolPage />} />
           <Route path="*" element={<NotAvailable title="페이지를 찾을 수 없습니다">주소를 다시 확인해 주세요.</NotAvailable>} />
         </Routes>
       </Suspense>

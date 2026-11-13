@@ -28,7 +28,7 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
-const ROUTES = ['/', '/trades', '/rents', '/map', '/compare', '/favorites', '/briefing', '/alerts', '/presales', '/living', '/calculator', '/about']
+const ROUTES = ['/', '/trades', '/rents', '/map', '/compare', '/favorites', '/briefing', '/alerts', '/presales', '/living', '/calculator', '/about', '/tools/geocode']
 
 test.describe('핵심 사용 흐름', () => {
   test.skip(({ isMobile }) => isMobile, '데스크톱 레이아웃 기준 흐름')
@@ -115,6 +115,33 @@ test.describe('핵심 사용 흐름', () => {
     await expect(page.getByText('180세대')).toBeVisible()
     await expect(page.getByText('거래가 없습니다').first()).toBeVisible()
   })
+})
+
+test('운영자 화면: 브이월드로 단지 위치를 찾아 파일로 내려받는다', async ({ page, isMobile }) => {
+  test.skip(isMobile, '데스크톱 기준')
+  // 가짜 브이월드(JSONP): 지번 9003 은 못 찾고 나머지는 찾는다
+  await page.route('https://api.vworld.kr/**', (r) => {
+    const u = new URL(r.request().url())
+    const cb = u.searchParams.get('callback')
+    const addr = u.searchParams.get('address') ?? ''
+    const body = addr.includes('9003')
+      ? { response: { status: 'NOT_FOUND' } }
+      : { response: { status: 'OK', refined: { text: `전남광주통합특별시 ${addr}` }, result: { point: { x: '127.5', y: '34.95' } } } }
+    return r.fulfill({ contentType: 'application/javascript', body: `${cb}(${JSON.stringify(body)})` })
+  })
+  await page.goto('/#/tools/geocode')
+  await page.getByLabel('OpenStreetMap으로 이미 찾은 단지도').check()
+  await page.getByLabel('브이월드 인증키').fill('TEST-KEY')
+  await page.getByRole('button', { name: '위치 찾기 시작' }).click()
+  await expect(page.getByRole('status').filter({ hasText: '확인 · 찾음' })).toContainText(/(\d+) \/ \1 확인/)
+  const dl = page.waitForEvent('download')
+  await page.getByRole('button', { name: /geocode-manual\.json 내려받기/ }).click()
+  const file = await dl
+  expect(file.suggestedFilename()).toBe('geocode-manual.json')
+  const json = JSON.parse(await (await import('node:fs/promises')).readFile((await file.path())!, 'utf8'))
+  const vals = Object.values(json) as { lat: number; source: string }[]
+  expect(vals.length).toBeGreaterThan(5)
+  expect(vals.every((v) => v.lat === 34.95 && v.source === '브이월드 지오코더')).toBe(true)
 })
 
 test.describe('화면별 점검', () => {

@@ -263,6 +263,10 @@ def run(
 
     # 3) 선택 연계: K-apt, 좌표, 분양 (실패해도 계속)
     geocache = read_json(cache_dir / "geocode.json", {})
+    # 운영자가 브라우저(사이트 관리 화면)에서 브이월드로 찾아 올린 좌표가 있으면 우선 적용
+    manual_n = enrich.merge_manual_coords(geocache, read_json(cache_dir / "geocode-manual.json", {}))
+    if manual_n:
+        log(f"[정보] 직접 올린 단지 좌표 {manual_n}곳 반영")
     kaptcache = read_json(cache_dir / "kapt.json", {})
 
     kapt_status = src.get("kapt", "pending")
