@@ -2,7 +2,7 @@ import { ChevronDown, ChevronUp, MapPinOff, SlidersHorizontal, X } from 'lucide-
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CompareButton, FavoriteButton } from '@/components/ComplexActions'
-import { KakaoMap, type MapStatus } from '@/components/KakaoMap'
+import { ComplexMap, type MapStatus } from '@/components/ComplexMap'
 import { Button } from '@/components/ui/button'
 import { Badge, Input, Select } from '@/components/ui/primitives'
 import { EmptyState, PendingState, ResourceView } from '@/components/ui/states'
@@ -12,7 +12,6 @@ import { cn } from '@/lib/cn'
 import { useComplexes, useManifest } from '@/lib/data'
 import { emptyComplexFilter, filterComplexes, parseNum, type ComplexFilter } from '@/lib/filters'
 import { formatDate, formatPrice } from '@/lib/format'
-import { hasKakaoKey } from '@/lib/kakao'
 import { usePrefs } from '@/store/prefs'
 import type { Complex } from '@/types'
 
@@ -69,7 +68,7 @@ function MapView({ complexes }: { complexes: Complex[] }) {
   const [f, setF] = useState<ComplexFilter>(emptyComplexFilter)
   const [showFilter, setShowFilter] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [mapStatus, setMapStatus] = useState<MapStatus>(hasKakaoKey ? 'loading' : 'no_key')
+  const [mapStatus, setMapStatus] = useState<MapStatus>('loading')
   const [sheetOpen, setSheetOpen] = useState(false)
   const mapOk = mapStatus === 'ready' || mapStatus === 'loading'
 
@@ -166,7 +165,7 @@ function MapView({ complexes }: { complexes: Complex[] }) {
       <div className="hidden overflow-y-auto border-r border-line bg-surface lg:block">{panel}</div>
 
       {/* 지도 (모바일: 전체 화면 / 지도 사용 불가 시 모바일에서는 숨김) */}
-      <KakaoMap
+      <ComplexMap
         complexes={list}
         selectedId={selectedId}
         onSelect={(id) => {
@@ -175,7 +174,7 @@ function MapView({ complexes }: { complexes: Complex[] }) {
         }}
         onStatus={setMapStatus}
         fitKey={list.map((c) => c.id).join(',')}
-        className={cn('h-full', mapOk ? 'absolute inset-0 lg:static' : 'hidden lg:block')}
+        className={cn('h-full', mapOk ? 'absolute inset-0 lg:relative lg:inset-auto' : 'hidden lg:block')}
       />
 
       {/* 모바일: 지도 위 하단 시트 / 지도 불가 시 일반 목록 */}
@@ -205,7 +204,7 @@ function MapView({ complexes }: { complexes: Complex[] }) {
         <div className="h-full overflow-y-auto bg-surface pb-16 lg:hidden">
           <p className="flex items-start gap-1.5 bg-warn-soft px-4 py-2 text-[12px] font-medium text-warn" role="status">
             <MapPinOff className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-            {mapStatus === 'no_key' ? '지도 연결 대기 중입니다(Kakao 지도 키 미설정). 단지 목록으로 탐색할 수 있습니다.' : '지도를 불러오지 못했습니다. 단지 목록으로 탐색할 수 있습니다.'}
+            지도를 불러오지 못했습니다. 단지 목록으로 탐색할 수 있습니다.
           </p>
           {panel}
         </div>

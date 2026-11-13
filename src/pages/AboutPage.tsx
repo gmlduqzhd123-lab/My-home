@@ -4,7 +4,6 @@ import { ResourceView } from '@/components/ui/states'
 import { ZONES } from '@/config/zones'
 import { freshness, useManifest } from '@/lib/data'
 import { formatDateTime, formatYm } from '@/lib/format'
-import { hasKakaoKey } from '@/lib/kakao'
 import type { Manifest, SourceStatus } from '@/types'
 
 const SRC: Record<SourceStatus, { label: string; tone: 'accent' | 'warn' | 'up' }> = {
@@ -84,10 +83,12 @@ export default function AboutPage() {
               ))}
               <li className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
                 <span>
-                  <span className="text-sm font-bold text-ink">Kakao 지도 (브라우저 표시)</span>
-                  <span className="block text-[12px] text-muted">Kakao Maps JavaScript SDK · 빌드 시 VITE_KAKAO_MAP_APP_KEY</span>
+                  <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-bold text-ink hover:underline">
+                    지도 · 주변 시설 (OpenStreetMap) <ExternalLink className="size-3.5 shrink-0 text-muted" aria-hidden="true" />
+                  </a>
+                  <span className="block text-[12px] text-muted">© OpenStreetMap 기여자 · 배경지도 타일과 Overpass API · 키 불필요</span>
                 </span>
-                <Badge tone={hasKakaoKey ? 'accent' : 'warn'}>{hasKakaoKey ? '키 설정됨' : '연결 대기'}</Badge>
+                <Badge tone="accent">연결됨</Badge>
               </li>
             </ul>
           )}
@@ -103,8 +104,8 @@ export default function AboutPage() {
               GitHub 저장소 Settings → Secrets and variables → Actions 에 <code className="rounded bg-surface-2 px-1">MOLIT_API_KEY</code> 를 등록합니다.
             </li>
             <li>
-              (선택) 단지 좌표용 <code className="rounded bg-surface-2 px-1">KAKAO_REST_API_KEY</code>, 지도 표시용{' '}
-              <code className="rounded bg-surface-2 px-1">KAKAO_MAP_APP_KEY</code>(JavaScript 키, 도메인 제한 필수)를 등록합니다.
+              (선택) 단지 좌표용으로 브이월드(vworld.kr) 지오코더 인증키를 발급받아{' '}
+              <code className="rounded bg-surface-2 px-1">VWORLD_API_KEY</code> 로 등록합니다. 지도 화면은 키 없이 동작합니다.
             </li>
             <li>Actions 탭에서 ‘데이터 수집 · 배포’ 워크플로를 실행하면 실제 자료가 반영됩니다. 이후 매일 자동으로 갱신됩니다.</li>
           </ol>
@@ -121,7 +122,7 @@ export default function AboutPage() {
             <li>해제(취소)된 거래는 목록에 구분해 표시하고 통계에서는 뺍니다.</li>
             <li>이전에 수집된 거래가 최근 조회에서 사라지면 삭제하거나 해제로 간주하지 않고 ‘최근 조회 미확인’으로 표시한 뒤 통계에서 뺍니다(정정 가능성).</li>
             <li>월 중위 거래금액은 그 달에 거래된 단지·면적 구성의 영향을 받습니다. 시장 전체의 상승·하락으로 단정하지 마세요.</li>
-            <li>단지 좌표는 지번 주소를 Kakao 주소 검색으로 변환한 값이며, 변환되지 않은 단지는 지도에 표시하지 않습니다.</li>
+            <li>단지 좌표는 지번 주소를 브이월드 지오코더로 변환한 값이며, 변환되지 않은 단지는 지도에 표시하지 않습니다.</li>
             <li>이 서비스는 투자·대출·세무 자문이 아닙니다.</li>
           </ul>
         </CardBody>

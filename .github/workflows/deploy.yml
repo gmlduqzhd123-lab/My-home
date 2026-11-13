@@ -65,7 +65,9 @@ jobs:
           MOLIT_STAT_API_KEY: ${{ secrets.MOLIT_STAT_API_KEY }}
           KOSIS_API_KEY: ${{ secrets.KOSIS_API_KEY }}
           REB_API_KEY: ${{ secrets.REB_API_KEY }}
-          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          VWORLD_API_KEY: ${{ secrets.VWORLD_API_KEY }}
+          # 브이월드 인증키를 발급받을 때 등록한 서비스 URL(이 사이트 주소)
+          VWORLD_DOMAIN: https://${{ github.repository_owner }}.github.io
           MONTHS: ${{ inputs.months }}
         run: |
           if [ -n "$MONTHS" ]; then python scripts/collect.py --months "$MONTHS"; else python scripts/collect.py; fi
@@ -106,10 +108,8 @@ jobs:
           npm run lint
           npm run test
 
+      # 지도는 OpenStreetMap(키 불필요)이라 빌드에 넣을 키가 없다
       - name: 빌드
-        env:
-          # Kakao 지도 JavaScript 키(브라우저 공개 키 — Kakao Developers 에서 도메인 제한 필수)
-          VITE_KAKAO_MAP_APP_KEY: ${{ secrets.KAKAO_MAP_APP_KEY }}
         run: npm run build
 
       - name: 배포 경로 · API 키 노출 점검
@@ -125,7 +125,7 @@ jobs:
           MOLIT_STAT_API_KEY: ${{ secrets.MOLIT_STAT_API_KEY }}
           KOSIS_API_KEY: ${{ secrets.KOSIS_API_KEY }}
           REB_API_KEY: ${{ secrets.REB_API_KEY }}
-          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          VWORLD_API_KEY: ${{ secrets.VWORLD_API_KEY }}
         run: |
           npm run check:pages
           npm run check:secrets
