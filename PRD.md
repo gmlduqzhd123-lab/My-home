@@ -87,6 +87,6 @@
 | 공동주택 단지 목록 | 국토교통부(K-apt) | `apis.data.go.kr/1613000/AptListService4/getSigunguAptList4` |
 | 공동주택 기본·상세 정보 | 국토교통부(K-apt) | `apis.data.go.kr/1613000/AptBasisInfoServiceV5/getAphusBassInfoV5`, `getAphusDtlInfoV5` |
 | 청약홈 분양정보 | 한국부동산원 | `api.odcloud.kr/api/ApplyhomeInfoDetailSvc/v1/getAPTLttotPblancDetail` |
-| 주소 → 좌표 | 브이월드 지오코더 2.0 | `api.vworld.kr/req/address` |
+| 단지 → 좌표 | OpenStreetMap Nominatim(단지명 검색) | `nominatim.openstreetmap.org/search` |
 | 지도 | OpenStreetMap 타일 + Leaflet | `tile.openstreetmap.org` |
 | 주변 시설 | OpenStreetMap Overpass API | `overpass-api.de/api/interpreter` |

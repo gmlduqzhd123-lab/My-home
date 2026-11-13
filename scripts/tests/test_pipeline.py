@@ -295,11 +295,11 @@ class EnrichTest(unittest.TestCase):
         self.assertEqual(cx[0]["kapt"]["households"], 120)
         self.assertIsNone(cx[0]["lat"])
         cache: dict = {}
-        hit = vworld_ok("전남광주통합특별시 순천시 조례1길 5", 127.5, 34.95)
         seen = []
-        enrich.geocode_complexes(cx, cache, "K", NOW1, get=lambda url, params, **k: (seen.append((params["address"], params["type"])), json.dumps(hit).encode())[1])
-        self.assertEqual(seen, [("순천시 조례1길 5", "road")])  # 지번이 없으면 도로명 주소로 좌표를 찾는다
-        self.assertEqual(cache["kK2"]["lat"], 34.95)
+        enrich.geocode_complexes(cx, cache, NOW1, sleep=lambda _s: None,
+                                 get=lambda url, params, **k: (seen.append(params["q"]), json.dumps(nom_fake(params["q"])).encode())[1])
+        self.assertEqual(seen[:2], ["조례동, 순천시", "거래없는단지"])  # 법정동 중심을 먼저 찾고 단지명으로 검색한다
+        self.assertEqual(cache["kK2"]["lat"], 34.951)
 
     def test_kapt_match_requires_unique_candidate(self):
         complexes = [{"id": "c1", "name": "테스트 단지", "umdNm": "왕지동", "jibun": "100"},
@@ -382,35 +382,50 @@ class EnrichTest(unittest.TestCase):
         self.assertEqual(enrich.fetch_lh_notices("K", NOW1, get=lambda *a, **k: b'[{"dsSch":[]},{"dsList":[]}]'), [])
 
     def test_geocode_no_result_makes_no_coordinate(self):
+        c = [{"id": "c1", "name": "없는단지", "umdNm": "왕지동", "jibun": "100"}]
         cache: dict = {}
-        c = [{"id": "c1", "umdNm": "왕지동", "jibun": "100"}]
-        enrich.geocode_complexes(c, cache, "K", NOW1, get=lambda *a, **k: b'{"response": {"status": "NOT_FOUND"}}')
+        enrich.geocode_complexes(c, cache, NOW1, sleep=lambda _s: None, get=lambda url, params, **k: json.dumps(nom_fake(params["q"])).encode())
         self.assertIsNone(cache["c1"]["lat"])
-        # 다른 시군의 같은 동 이름이 잡히면 좌표를 만들지 않는다
-        cache.clear()
-        other = vworld_ok("경기도 어딘가시 왕지동 100", 127.0, 37.0)
-        enrich.geocode_complexes(c, cache, "K", NOW1, get=lambda *a, **k: json.dumps(other).encode())
+
+    def test_geocode_rejects_far_or_non_residential_hits(self):
+        # 법정동 중심에서 멀리 떨어진 같은 이름(다른 동네), 버스정류장 이름은 좌표로 쓰지 않는다
+        c = [{"id": "c1", "name": "먼단지", "umdNm": "왕지동"}, {"id": "c2", "name": "정류장단지", "umdNm": "왕지동"}]
+        cache: dict = {}
+        enrich.geocode_complexes(c, cache, NOW1, sleep=lambda _s: None, get=lambda url, params, **k: json.dumps(nom_fake(params["q"])).encode())
         self.assertIsNone(cache["c1"]["lat"])
-        cache.clear()
-        seen = []
-        hit = vworld_ok("전남광주통합특별시 순천시 왕지동 100", 127.52, 34.97)
-        enrich.geocode_complexes(c, cache, "K", NOW1, domain="https://x.github.io",
-                                 get=lambda url, params, **k: (seen.append(params), json.dumps(hit).encode())[1])
-        self.assertEqual((cache["c1"]["lat"], cache["c1"]["lng"]), (34.97, 127.52))
-        self.assertEqual((seen[0]["address"], seen[0]["type"], seen[0]["key"], seen[0]["domain"]),
-                         ("순천시 왕지동 100", "parcel", "K", "https://x.github.io"))
+        self.assertIsNone(cache["c2"]["lat"])
 
-    def test_geocode_key_error_raises(self):
-        bad = {"response": {"status": "ERROR", "error": {"code": "INCORRECT_KEY", "text": "인증키 정보가 올바르지 않습니다."}}}
-        with self.assertRaises(ApiError) as cm:
-            enrich.geocode_complexes([{"id": "c1", "umdNm": "왕지동", "jibun": "100"}], {}, "K", NOW1,
-                                     get=lambda *a, **k: json.dumps(bad).encode())
-        self.assertTrue(cm.exception.auth)
-        self.assertIn("INCORRECT_KEY", str(cm.exception))
+    def test_geocode_tries_name_variants(self):
+        self.assertEqual(enrich.name_variants("순천중흥에스-클래스1단지")[:4],
+                         ["순천중흥에스-클래스1단지", "순천중흥에스-클래스1단지아파트", "중흥에스-클래스1단지", "중흥에스-클래스1단지아파트"])
+        self.assertIn("중흥S-클래스1단지", enrich.name_variants("순천중흥에스-클래스1단지"))
+        c = [{"id": "c1", "name": "왕지롯데", "umdNm": "왕지동"}]
+        cache: dict = {}
+        sleeps = []
+        enrich.geocode_complexes(c, cache, NOW1, sleep=sleeps.append, get=lambda url, params, **k: json.dumps(nom_fake(params["q"])).encode())
+        self.assertEqual((cache["c1"]["lat"], cache["c1"]["query"]), (34.97, "왕지롯데아파트"))
+        self.assertTrue(all(s >= 1 for s in sleeps))  # 초당 1회 이하로 호출한다
+
+    def test_geocode_budget_stops_early_and_resumes(self):
+        c = [{"id": f"c{i}", "name": "없는단지", "umdNm": "왕지동"} for i in range(5)]
+        cache: dict = {}
+        get = lambda url, params, **k: json.dumps(nom_fake(params["q"])).encode()  # noqa: E731
+        enrich.geocode_complexes(c, cache, NOW1, sleep=lambda _s: None, budget=5, get=get)
+        self.assertEqual(sorted(k for k in cache if not k.startswith("_")), ["c0", "c1"])  # 예산이 떨어지면 다음 수집 때 이어서
+        self.assertEqual(cache["_centers"]["왕지동"], [34.97, 127.52])
 
 
-def vworld_ok(text: str, x: float, y: float) -> dict:
-    return {"response": {"status": "OK", "refined": {"text": text}, "result": {"crs": "EPSG:4326", "point": {"x": str(x), "y": str(y)}}}}
+def nom_fake(q: str) -> list[dict]:
+    """가짜 Nominatim 응답: 법정동 중심 2곳과 몇몇 단지."""
+    res = {
+        "조례동, 순천시": [{"lat": "34.95", "lon": "127.5", "category": "place", "type": "quarter", "name": "조례동"}],
+        "왕지동, 순천시": [{"lat": "34.97", "lon": "127.52", "category": "place", "type": "quarter", "name": "왕지동"}],
+        "거래없는단지": [{"lat": "34.951", "lon": "127.501", "category": "landuse", "type": "residential", "name": "거래없는단지"}],
+        "왕지롯데아파트": [{"lat": "34.97", "lon": "127.521", "category": "landuse", "type": "residential", "name": "왕지롯데아파트"}],
+        "먼단지": [{"lat": "35.2", "lon": "127.52", "category": "landuse", "type": "residential", "name": "먼단지"}],
+        "정류장단지": [{"lat": "34.97", "lon": "127.52", "category": "highway", "type": "bus_stop", "name": "정류장단지"}],
+    }
+    return res.get(q, [])
 
 
 if __name__ == "__main__":

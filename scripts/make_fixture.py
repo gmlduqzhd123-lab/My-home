@@ -36,7 +36,9 @@ COMPLEXES = [
     ("[가상] 풍덕마루", "풍덕동", "9011", 2011, [(84.8, 28500)], (34.9372, 127.5012)),
     ("[가상] 덕암한울", "덕암동", "9012", 1996, [(59.4, 10500), (84.4, 14000)], (34.9408, 127.4958)),
 ]
-COORDS = {f"순천시 {c[1]} {c[2]}": c[5] for c in COMPLEXES}
+COORDS = {c[0]: c[5] for c in COMPLEXES}
+# 가상 법정동 중심(그 동 첫 단지 좌표) — Nominatim 검색어 "동, 면, 순천시" 형태로 찾는다
+DONG_CENTER = {", ".join(reversed(c[1].split())) + ", 순천시": c[5] for c in reversed(COMPLEXES)}
 FIX_STATE = {"today": False}  # 두 번째(오늘) 수집 여부 — 새 공고를 흉내 내는 데 쓴다
 # 가상 법정동 코드(뒤 5자리)
 FIX_DONG = {n: f"{10100 + i * 100}" for i, n in enumerate(sorted({c[1] for c in COMPLEXES}))}
@@ -45,7 +47,8 @@ KAPT_ONLY = [
     ("[가상] 매곡고요", "매곡동", "", "순천시 가상매곡길 11", (34.9611, 127.4802)),
     ("[가상] 선평들녘", "서면", "선평리", "순천시 서면 가상선평길 7", (34.9903, 127.4905)),
 ]
-COORDS.update({k[3]: k[4] for k in KAPT_ONLY})
+COORDS.update({k[0]: k[4] for k in KAPT_ONLY})
+DONG_CENTER.update({f"{k[1]}, 순천시": k[4] for k in KAPT_ONLY})
 
 
 def make_rents(rng: random.Random, ym: str) -> list[dict]:
@@ -94,12 +97,13 @@ def make_month(rng: random.Random, ym: str, idx: int, n_months: int) -> list[dic
 
 
 def fake_get(url, params=None, **_):
-    if url == config.VWORLD_ADDRESS_URL:
-        xy = COORDS.get(params["address"])
-        if not xy:
-            return json.dumps({"response": {"status": "NOT_FOUND"}}).encode()
-        return json.dumps({"response": {"status": "OK", "refined": {"text": "전남광주통합특별시 " + params["address"]},
-                                        "result": {"point": {"x": str(xy[1]), "y": str(xy[0])}}}}).encode()
+    if url == config.NOMINATIM_URL:
+        q = params["q"]
+        if q in DONG_CENTER:
+            y, x = DONG_CENTER[q]
+            return json.dumps([{"lat": str(y), "lon": str(x), "category": "place", "type": "quarter", "name": q}]).encode()
+        xy = COORDS.get(q)
+        return json.dumps([{"lat": str(xy[0]), "lon": str(xy[1]), "category": "landuse", "type": "residential", "name": q}] if xy else []).encode()
     if url == config.KAPT_LIST_URL:
         items = [{"kaptCode": f"F{i:04d}", "kaptName": c[0], "as3": c[1].split()[0], "as4": " ".join(c[1].split()[1:])}
                  for i, c in enumerate(COMPLEXES[:8])]
@@ -232,7 +236,7 @@ def main() -> None:
     def fetch_rent_month(key, code, ym):
         return list(rents.get(ym, [])) if code == config.PRIMARY_LAWD else []
 
-    env = {"MOLIT_API_KEY": "fixture", "VWORLD_API_KEY": "fixture", "REB_API_KEY": "fixture",
+    env = {"MOLIT_API_KEY": "fixture", "REB_API_KEY": "fixture",
            "MOLIT_STAT_API_KEY": "fixture", "KOSIS_API_KEY": "fixture"}
     quiet = lambda s: None  # noqa: E731
     assert pipeline.run(now=yesterday, data_dir=OUT, cache_dir=CACHE, env=env, fetch_month=fetch_month, fetch_rent_month=fetch_rent_month, get=fake_get, log=quiet) == 0

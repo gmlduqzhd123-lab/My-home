@@ -104,8 +104,7 @@ export default function AboutPage() {
               GitHub 저장소 Settings → Secrets and variables → Actions 에 <code className="rounded bg-surface-2 px-1">MOLIT_API_KEY</code> 를 등록합니다.
             </li>
             <li>
-              (선택) 단지 좌표용으로 브이월드(vworld.kr) 지오코더 인증키를 발급받아{' '}
-              <code className="rounded bg-surface-2 px-1">VWORLD_API_KEY</code> 로 등록합니다. 지도 화면은 키 없이 동작합니다.
+              지도 화면·주변 시설·단지 좌표는 OpenStreetMap 을 쓰므로 따로 등록할 키가 없습니다.
             </li>
             <li>Actions 탭에서 ‘데이터 수집 · 배포’ 워크플로를 실행하면 실제 자료가 반영됩니다. 이후 매일 자동으로 갱신됩니다.</li>
           </ol>
@@ -122,7 +121,7 @@ export default function AboutPage() {
             <li>해제(취소)된 거래는 목록에 구분해 표시하고 통계에서는 뺍니다.</li>
             <li>이전에 수집된 거래가 최근 조회에서 사라지면 삭제하거나 해제로 간주하지 않고 ‘최근 조회 미확인’으로 표시한 뒤 통계에서 뺍니다(정정 가능성).</li>
             <li>월 중위 거래금액은 그 달에 거래된 단지·면적 구성의 영향을 받습니다. 시장 전체의 상승·하락으로 단정하지 마세요.</li>
-            <li>단지 좌표는 지번 주소를 브이월드 지오코더로 변환한 값이며, 변환되지 않은 단지는 지도에 표시하지 않습니다.</li>
+            <li>단지 좌표는 OpenStreetMap 에서 단지명으로 찾은 위치(법정동 근처인 경우만)이며, 찾지 못한 단지는 지도에 표시하지 않습니다.</li>
             <li>이 서비스는 투자·대출·세무 자문이 아닙니다.</li>
           </ul>
         </CardBody>
