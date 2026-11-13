@@ -1,11 +1,11 @@
 // API 키 노출 점검.
-// 1) 환경변수에 있는 비밀 값(공공데이터 키, Kakao REST 키)이 빌드 산출물·공개 데이터에 들어가지 않았는지
-// 2) 소스·데이터에 키처럼 보이는 문자열(serviceKey=값, KakaoAK 값)이 하드코딩되지 않았는지
+// 1) 환경변수에 있는 비밀 값(공공데이터 키, 브이월드 키)이 빌드 산출물·공개 데이터에 들어가지 않았는지
+// 2) 소스·데이터에 키처럼 보이는 문자열(serviceKey=값 등)이 하드코딩되지 않았는지
 import fs from 'node:fs'
 import path from 'node:path'
 
 const ROOT = process.cwd()
-const SECRET_ENVS = ['MOLIT_API_KEY', 'RENT_API_KEY', 'KAPT_API_KEY', 'APPLYHOME_API_KEY', 'SCHOOL_API_KEY', 'LH_API_KEY', 'BUILDING_HUB_API_KEY', 'BUILDING_REGISTER_API_KEY', 'MOLIT_STAT_API_KEY', 'KOSIS_API_KEY', 'REB_API_KEY', 'KAKAO_REST_API_KEY']
+const SECRET_ENVS = ['MOLIT_API_KEY', 'RENT_API_KEY', 'KAPT_API_KEY', 'APPLYHOME_API_KEY', 'SCHOOL_API_KEY', 'LH_API_KEY', 'BUILDING_HUB_API_KEY', 'BUILDING_REGISTER_API_KEY', 'MOLIT_STAT_API_KEY', 'KOSIS_API_KEY', 'REB_API_KEY', 'VWORLD_API_KEY']
 const SCAN_DIRS = ['dist', 'public', 'src', 'scripts', 'tools', '.github', 'data-cache']
 const SKIP = new Set(['node_modules', '__pycache__', '.git'])
 const TEXT = /\.(js|mjs|ts|tsx|json|html|css|py|yml|yaml|md|txt|svg|webmanifest|map)$/i

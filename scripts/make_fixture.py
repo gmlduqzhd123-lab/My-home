@@ -94,10 +94,12 @@ def make_month(rng: random.Random, ym: str, idx: int, n_months: int) -> list[dic
 
 
 def fake_get(url, params=None, **_):
-    if url == config.KAKAO_ADDRESS_URL:
-        xy = COORDS.get(params["query"])
-        docs = [{"address_name": "전남광주통합특별시 " + params["query"], "x": str(xy[1]), "y": str(xy[0])}] if xy else []
-        return json.dumps({"documents": docs}).encode()
+    if url == config.VWORLD_ADDRESS_URL:
+        xy = COORDS.get(params["address"])
+        if not xy:
+            return json.dumps({"response": {"status": "NOT_FOUND"}}).encode()
+        return json.dumps({"response": {"status": "OK", "refined": {"text": "전남광주통합특별시 " + params["address"]},
+                                        "result": {"point": {"x": str(xy[1]), "y": str(xy[0])}}}}).encode()
     if url == config.KAPT_LIST_URL:
         items = [{"kaptCode": f"F{i:04d}", "kaptName": c[0], "as3": c[1].split()[0], "as4": " ".join(c[1].split()[1:])}
                  for i, c in enumerate(COMPLEXES[:8])]
@@ -230,7 +232,7 @@ def main() -> None:
     def fetch_rent_month(key, code, ym):
         return list(rents.get(ym, [])) if code == config.PRIMARY_LAWD else []
 
-    env = {"MOLIT_API_KEY": "fixture", "KAKAO_REST_API_KEY": "fixture", "REB_API_KEY": "fixture",
+    env = {"MOLIT_API_KEY": "fixture", "VWORLD_API_KEY": "fixture", "REB_API_KEY": "fixture",
            "MOLIT_STAT_API_KEY": "fixture", "KOSIS_API_KEY": "fixture"}
     quiet = lambda s: None  # noqa: E731
     assert pipeline.run(now=yesterday, data_dir=OUT, cache_dir=CACHE, env=env, fetch_month=fetch_month, fetch_rent_month=fetch_rent_month, get=fake_get, log=quiet) == 0

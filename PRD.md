@@ -31,7 +31,7 @@
 | 기능 | 내용 |
 |---|---|
 | 대시보드 | 직전 달 거래량·중위가(표본 수 표기), 집계 중인 달, 12개월 거래량, 월별 차트, 브리핑 요약, 관심 단지 변화, 생활권 바로가기, 최근 거래, 분양 소식, 최종 갱신 시각 |
-| 지도 탐색 | Kakao 지도 + 마커 클러스터, 생활권·금액·면적·준공연도 필터, 목록 동기화, 선택 패널, 모바일 하단 시트. 지도 키가 없어도 목록 동작 |
+| 지도 탐색 | OpenStreetMap 지도(Leaflet) + 단지 위치 점, 생활권·금액·면적·준공연도 필터, 목록 동기화, 선택 패널, 모바일 하단 시트. 좌표가 없어도 목록 동작 |
 | 실거래 | 기간(프리셋·월 선택), 생활권, 법정동, 단지명, 면적, 금액, 층, 해제 표시, 정렬, 요약(건수·중위·최고·최저), 차트, 표, 직전 같은 면적 거래 대비 |
 | 단지 상세 | 기본정보(K-apt, 없으면 "자료 확인 불가"), 위치, 면적별 통계·추이·거래량, 거래 목록, 주변 시설, 공식 통학구역 링크, 관심·비교 버튼 |
 | 비교 | 최대 4개, 기간·면적 기준 선택, 비교 표·차트, 조건 차이 주의 문구 |
@@ -47,7 +47,7 @@
 | 대출 계산기 | 구현(원리금균등·원금균등, 필요 현금). 취득세·정책대출은 제공하지 않음 |
 | 전월세 | 수집기·조회 화면·단지 상세 연동 구현. 실제 조회는 활용신청 후 확인 필요 |
 | 분양·입주 | 청약홈 공고·주택형별 분양가 연동 구현. 실제 조회 미검증 |
-| 학군·생활환경 | 학교 목록·단지별 가까운 학교(학교 위치 표준데이터), 주변 시설(Kakao 장소 검색, 키 필요), 공식 통학구역 링크. 통학구역 경계는 미연계 |
+| 학군·생활환경 | 학교 목록·단지별 가까운 학교(학교 위치 표준데이터), 주변 시설(OpenStreetMap Overpass API, 키 불필요), 공식 통학구역 링크. 통학구역 경계는 미연계 |
 | 가격지수 | 한국부동산원 (월) 아파트 매매가격지수 — 순천시. R-ONE 키 필요 |
 | 전체 단지 목록 | K-apt 단지 목록으로 거래 없는 단지까지 포함. 실제 조회 미검증 |
 | 실거래 보조 기능 | 직거래·법인 거래 제외 옵션, 검색 조건 주소 저장(링크 공유·복원) |
@@ -87,5 +87,6 @@
 | 공동주택 단지 목록 | 국토교통부(K-apt) | `apis.data.go.kr/1613000/AptListService4/getSigunguAptList4` |
 | 공동주택 기본·상세 정보 | 국토교통부(K-apt) | `apis.data.go.kr/1613000/AptBasisInfoServiceV5/getAphusBassInfoV5`, `getAphusDtlInfoV5` |
 | 청약홈 분양정보 | 한국부동산원 | `api.odcloud.kr/api/ApplyhomeInfoDetailSvc/v1/getAPTLttotPblancDetail` |
-| 주소 → 좌표 | Kakao Local | `dapi.kakao.com/v2/local/search/address.json` |
-| 지도·장소 검색 | Kakao Maps JavaScript SDK | `dapi.kakao.com/v2/maps/sdk.js` |
+| 주소 → 좌표 | 브이월드 지오코더 2.0 | `api.vworld.kr/req/address` |
+| 지도 | OpenStreetMap 타일 + Leaflet | `tile.openstreetmap.org` |
+| 주변 시설 | OpenStreetMap Overpass API | `overpass-api.de/api/interpreter` |

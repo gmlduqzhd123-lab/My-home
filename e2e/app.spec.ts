@@ -9,6 +9,25 @@ function watchErrors(page: Page): string[] {
   return errors
 }
 
+// 외부 지도 서버는 테스트에서 가짜 응답으로 대신한다(네트워크 상태와 무관하게 같은 결과)
+const PNG_1PX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', 'base64')
+test.beforeEach(async ({ page }) => {
+  await page.route('https://tile.openstreetmap.org/**', (r) => r.fulfill({ contentType: 'image/png', body: PNG_1PX }))
+  await page.route(/^https:\/\/overpass[^/]*\/api\/interpreter/, async (r) => {
+    const body = decodeURIComponent((r.request().postData() ?? '').replace(/^data=/, ''))
+    const m = body.match(/around:\d+,([\d.]+),([\d.]+)/)
+    const [lat, lng] = m ? [Number(m[1]), Number(m[2])] : [34.95, 127.5]
+    await r.fulfill({
+      json: {
+        elements: [
+          { type: 'node', id: 101, lat: lat + 0.002, lon: lng, tags: { amenity: 'pharmacy', name: '[가상] 온누리약국' } },
+          { type: 'way', id: 102, center: { lat: lat + 0.004, lon: lng }, tags: { amenity: 'school', name: '[가상] 순천초등학교' } },
+        ],
+      },
+    })
+  })
+})
+
 const ROUTES = ['/', '/trades', '/rents', '/map', '/compare', '/favorites', '/briefing', '/alerts', '/presales', '/living', '/calculator', '/about']
 
 test.describe('핵심 사용 흐름', () => {
@@ -73,14 +92,18 @@ test.describe('핵심 사용 흐름', () => {
     expect(errors).toEqual([])
   })
 
-  test('지도 키가 없어도 단지 목록으로 탐색할 수 있다', async ({ page }) => {
+  test('지도와 목록으로 단지를 찾고 주변 시설을 본다', async ({ page }) => {
     await page.goto('/#/map')
-    await expect(page.getByText('지도 연결 대기 중').filter({ visible: true }).first()).toBeVisible()
+    await expect(page.locator('.leaflet-container')).toBeVisible()
+    await expect(page.locator('path.leaflet-interactive').first()).toBeVisible()
+    await expect(page.getByRole('link', { name: 'OpenStreetMap' }).first()).toBeVisible()
     await page.getByLabel('단지 검색', { exact: true }).filter({ visible: true }).fill('연향')
     await page.getByRole('button', { name: /연향새솔/ }).filter({ visible: true }).click()
     await expect(page.getByRole('region', { name: /연향새솔 요약/ }).filter({ visible: true })).toBeVisible()
     await page.getByRole('link', { name: '상세 보기' }).filter({ visible: true }).click()
     await expect(page.getByRole('heading', { level: 1 })).toContainText('연향새솔')
+    await expect(page.getByRole('link', { name: '[가상] 온누리약국' })).toBeVisible()
+    await expect(page.getByRole('link', { name: '[가상] 순천초등학교' })).toBeVisible()
   })
 
   test('거래가 없는 단지(K-apt 목록)도 찾아볼 수 있다', async ({ page }) => {

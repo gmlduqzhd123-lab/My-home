@@ -406,10 +406,10 @@
       "status": "failed"
     },
     {
-      "id": "kakao-geo",
-      "name": "단지 좌표 (Kakao 주소 검색)",
-      "provider": "Kakao",
-      "url": "https://developers.kakao.com/docs/ko/local/dev-guide",
+      "id": "vworld-geo",
+      "name": "단지 좌표 (브이월드 지오코더)",
+      "provider": "국토교통부 · 브이월드",
+      "url": "https://www.vworld.kr/dev/v4dv_geocoderguide2_s001.do",
       "status": "pending"
     },
     {

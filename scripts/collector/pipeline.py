@@ -45,8 +45,8 @@ def sources(*, trade: str, kapt: str, geo: str, presale: str, rent: str = "pendi
          "url": config.MOLIT_RENT_PAGE, "status": rent},
         {"id": "kapt", "name": "공동주택 단지 목록·기본정보 (K-apt)", "provider": "국토교통부 · 공공데이터포털",
          "url": config.KAPT_BASIC_PAGE, "status": kapt},
-        {"id": "kakao-geo", "name": "단지 좌표 (Kakao 주소 검색)", "provider": "Kakao",
-         "url": "https://developers.kakao.com/docs/ko/local/dev-guide", "status": geo},
+        {"id": "vworld-geo", "name": "단지 좌표 (브이월드 지오코더)", "provider": "국토교통부 · 브이월드",
+         "url": config.VWORLD_GEOCODER_PAGE, "status": geo},
         {"id": "applyhome", "name": "청약홈 분양정보 조회 서비스", "provider": "한국부동산원 · 공공데이터포털",
          "url": config.APPLYHOME_PAGE, "status": presale},
         {"id": "lh-notice", "name": "LH 분양임대공고문 조회 서비스", "provider": "한국토지주택공사 · 공공데이터포털",
@@ -278,12 +278,13 @@ def run(
     # 실거래가 없어 목록에 없던 단지도 K-apt 단지 목록으로 채운다
     kapt_only = enrich.unmatched_kapt(kaptcache.get("items", {}), kapt_by_complex)
 
-    geo_status = src.get("kakao-geo", "pending")
-    rest_key = (env.get("KAKAO_REST_API_KEY") or "").strip()
+    geo_status = src.get("vworld-geo", "pending")
+    rest_key = (env.get("VWORLD_API_KEY") or "").strip()
     if rest_key:
         try:
             enrich.geocode_complexes(stats.build_complexes(all_trades, {}, kapt_by_complex, all_rents, kapt_only),
-                                     geocache, rest_key, now, get=get)
+                                     geocache, rest_key, now, get=get,
+                                     domain=(env.get("VWORLD_DOMAIN") or "").strip() or None)
             geo_status = "connected"
         except Exception as e:  # noqa: BLE001
             log(f"[경고] 좌표 변환 실패: {e}")

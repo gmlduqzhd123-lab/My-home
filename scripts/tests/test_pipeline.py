@@ -295,10 +295,10 @@ class EnrichTest(unittest.TestCase):
         self.assertEqual(cx[0]["kapt"]["households"], 120)
         self.assertIsNone(cx[0]["lat"])
         cache: dict = {}
-        hit = {"documents": [{"address_name": "전남광주통합특별시 순천시 조례동 55", "x": "127.5", "y": "34.95"}]}
+        hit = vworld_ok("전남광주통합특별시 순천시 조례1길 5", 127.5, 34.95)
         seen = []
-        enrich.geocode_complexes(cx, cache, "K", NOW1, get=lambda url, params, **k: (seen.append(params["query"]), json.dumps(hit).encode())[1])
-        self.assertEqual(seen, ["순천시 조례1길 5"])  # 지번이 없으면 도로명 주소로 좌표를 찾는다
+        enrich.geocode_complexes(cx, cache, "K", NOW1, get=lambda url, params, **k: (seen.append((params["address"], params["type"])), json.dumps(hit).encode())[1])
+        self.assertEqual(seen, [("순천시 조례1길 5", "road")])  # 지번이 없으면 도로명 주소로 좌표를 찾는다
         self.assertEqual(cache["kK2"]["lat"], 34.95)
 
     def test_kapt_match_requires_unique_candidate(self):
@@ -384,12 +384,33 @@ class EnrichTest(unittest.TestCase):
     def test_geocode_no_result_makes_no_coordinate(self):
         cache: dict = {}
         c = [{"id": "c1", "umdNm": "왕지동", "jibun": "100"}]
-        enrich.geocode_complexes(c, cache, "K", NOW1, get=lambda *a, **k: b'{"documents": []}')
+        enrich.geocode_complexes(c, cache, "K", NOW1, get=lambda *a, **k: b'{"response": {"status": "NOT_FOUND"}}')
         self.assertIsNone(cache["c1"]["lat"])
-        hit = {"documents": [{"address_name": "전남광주통합특별시 순천시 왕지동 100", "x": "127.52", "y": "34.97"}]}
+        # 다른 시군의 같은 동 이름이 잡히면 좌표를 만들지 않는다
         cache.clear()
-        enrich.geocode_complexes(c, cache, "K", NOW1, get=lambda *a, **k: json.dumps(hit).encode())
+        other = vworld_ok("경기도 어딘가시 왕지동 100", 127.0, 37.0)
+        enrich.geocode_complexes(c, cache, "K", NOW1, get=lambda *a, **k: json.dumps(other).encode())
+        self.assertIsNone(cache["c1"]["lat"])
+        cache.clear()
+        seen = []
+        hit = vworld_ok("전남광주통합특별시 순천시 왕지동 100", 127.52, 34.97)
+        enrich.geocode_complexes(c, cache, "K", NOW1, domain="https://x.github.io",
+                                 get=lambda url, params, **k: (seen.append(params), json.dumps(hit).encode())[1])
         self.assertEqual((cache["c1"]["lat"], cache["c1"]["lng"]), (34.97, 127.52))
+        self.assertEqual((seen[0]["address"], seen[0]["type"], seen[0]["key"], seen[0]["domain"]),
+                         ("순천시 왕지동 100", "parcel", "K", "https://x.github.io"))
+
+    def test_geocode_key_error_raises(self):
+        bad = {"response": {"status": "ERROR", "error": {"code": "INCORRECT_KEY", "text": "인증키 정보가 올바르지 않습니다."}}}
+        with self.assertRaises(ApiError) as cm:
+            enrich.geocode_complexes([{"id": "c1", "umdNm": "왕지동", "jibun": "100"}], {}, "K", NOW1,
+                                     get=lambda *a, **k: json.dumps(bad).encode())
+        self.assertTrue(cm.exception.auth)
+        self.assertIn("INCORRECT_KEY", str(cm.exception))
+
+
+def vworld_ok(text: str, x: float, y: float) -> dict:
+    return {"response": {"status": "OK", "refined": {"text": text}, "result": {"crs": "EPSG:4326", "point": {"x": str(x), "y": str(y)}}}}
 
 
 if __name__ == "__main__":

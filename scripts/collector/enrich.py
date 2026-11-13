@@ -1,4 +1,4 @@
-"""선택 연계: 단지 좌표(Kakao 주소 검색), K-apt 공동주택 기본정보, 청약홈 분양정보.
+"""선택 연계: 단지 좌표(브이월드 지오코더), K-apt 공동주택 기본정보, 청약홈 분양정보.
 
 모두 실패해도 실거래 수집에는 영향을 주지 않는다. 확인되지 않은 값은 만들지 않는다.
 """
@@ -34,9 +34,38 @@ def _stale(iso: str | None, now: datetime, days: int) -> bool:
 
 # ───────────────────────── 좌표 ─────────────────────────
 
+def _vworld_point(rest_key: str, query: str, kind: str, get: Get, domain: str | None) -> tuple[float, float] | None:
+    """브이월드 지오코더 2.0 으로 주소 1건을 좌표(lat, lng)로 바꾼다. 결과가 없으면 None.
+
+    응답: {"response": {"status": "OK"|"NOT_FOUND"|"ERROR", "refined": {"text": ...},
+                         "result": {"point": {"x": 경도, "y": 위도}}, "error": {"code", "text"}}}
+    """
+    params = {"service": "address", "request": "getcoord", "version": "2.0", "crs": "epsg:4326",
+              "address": query, "refine": "true", "simple": "false", "format": "json", "type": kind,
+              "key": rest_key}
+    if domain:
+        params["domain"] = domain
+    res = _json(get(config.VWORLD_ADDRESS_URL, params, secrets=[rest_key])).get("response") or {}
+    status = str(res.get("status", "")).upper()
+    if status == "NOT_FOUND":
+        return None
+    if status != "OK":
+        err = res.get("error") or {}
+        raise ApiError(f"브이월드 지오코더 오류: {err.get('code') or status or '응답 없음'} {err.get('text') or ''}".strip(),
+                       auth="KEY" in str(err.get("code", "")).upper())
+    # 다른 시군의 동명 주소가 잡히는 것을 막는다
+    if "순천" not in str((res.get("refined") or {}).get("text", "")):
+        return None
+    pt = (res.get("result") or {}).get("point") or {}
+    try:
+        return round(float(pt["y"]), 6), round(float(pt["x"]), 6)
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def geocode_complexes(complexes: list[dict], cache: dict, rest_key: str, now: datetime, *,
-                      get: Get = http_get, limit: int = 600) -> dict:
-    """좌표가 없는 단지의 지번 주소를 Kakao 주소 검색으로 변환해 cache 에 기록한다.
+                      get: Get = http_get, limit: int = 600, domain: str | None = None) -> dict:
+    """좌표가 없는 단지의 주소를 브이월드 지오코더로 변환해 cache 에 기록한다.
 
     검색 결과가 없으면 좌표를 만들지 않고 실패로 기록한다(30일 뒤 재시도).
     """
@@ -49,19 +78,14 @@ def geocode_complexes(complexes: list[dict], cache: dict, rest_key: str, now: da
             continue
         # 실거래 단지는 지번 주소, 거래 없는 K-apt 단지는 도로명(없으면 법정동) 주소로 찾는다
         if c.get("jibun"):
-            query = f"순천시 {c['umdNm']} {c['jibun']}"
+            query, kind = f"순천시 {c['umdNm']} {c['jibun']}", "parcel"
         elif c["id"].startswith("k") and (c.get("roadAddress") or c.get("address")):
-            query = c.get("roadAddress") or c["address"]
+            query, kind = (c["roadAddress"], "road") if c.get("roadAddress") else (c["address"], "parcel")
         else:
             continue
-        data = _json(get(config.KAKAO_ADDRESS_URL, {"query": query, "size": 1},
-                         headers={"Authorization": f"KakaoAK {rest_key}"}, secrets=[rest_key]))
-        docs = data.get("documents") or []
-        hit = docs[0] if docs else None
-        # 다른 시군의 동명 주소가 잡히는 것을 막는다
-        if hit and "순천" in str(hit.get("address_name", "")):
-            cache[c["id"]] = {"lat": round(float(hit["y"]), 6), "lng": round(float(hit["x"]), 6),
-                              "source": "Kakao 주소 검색", "query": query, "at": now.isoformat()}
+        hit = _vworld_point(rest_key, query, kind, get, domain)
+        if hit:
+            cache[c["id"]] = {"lat": hit[0], "lng": hit[1], "source": "브이월드 지오코더", "query": query, "at": now.isoformat()}
         else:
             cache[c["id"]] = {"lat": None, "lng": None, "source": None, "query": query, "at": now.isoformat()}
         done += 1

@@ -3,7 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { PriceTrendChart, VolumeChart } from '@/components/charts'
 import { CompareButton, FavoriteButton } from '@/components/ComplexActions'
-import { KakaoMap } from '@/components/KakaoMap'
+import { ComplexMap } from '@/components/ComplexMap'
 import { NearbyPlaces, OfficialSchoolLinks } from '@/components/NearbyPlaces'
 import { RentTable } from '@/components/RentTable'
 import { NearestSchools } from '@/components/Schools'
@@ -109,7 +109,7 @@ function Detail({ c, trades, manifest }: { c: Complex; trades: Trade[]; manifest
       <Card className="overflow-hidden">
         <CardHeader title="위치" desc={c.lat != null ? `좌표 출처: ${c.coordSource}` : undefined} className="pb-3" />
         {c.lat != null ? (
-          <KakaoMap complexes={[c]} selectedId={c.id} className="h-64 sm:h-80" fitKey={c.id} />
+          <ComplexMap complexes={[c]} selectedId={c.id} className="h-64 sm:h-80" fitKey={c.id} />
         ) : (
           <NotAvailable title="지도상 위치 확인 불가" className="py-8">
             이 단지의 좌표가 확인되지 않았습니다. 임의 위치는 표시하지 않습니다.
@@ -208,7 +208,7 @@ function Detail({ c, trades, manifest }: { c: Complex; trades: Trade[]; manifest
       </Card>
 
       <Card>
-        <CardHeader title="주변 생활시설" desc="단지 좌표 기준 직선거리(Kakao 장소 검색). 실제 이동 거리·통학로와 다릅니다" />
+        <CardHeader title="주변 생활시설" desc="단지 좌표 기준 직선거리(OpenStreetMap). 실제 이동 거리·통학로와 다릅니다" />
         <NearbyPlaces lat={c.lat} lng={c.lng} />
         <div className="border-t border-line p-4 sm:p-5">
           <p className="mb-2 text-[13px] leading-relaxed text-ink">

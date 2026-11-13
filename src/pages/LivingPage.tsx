@@ -6,7 +6,6 @@ import { SchoolList } from '@/components/Schools'
 import { Badge, Card, CardBody, CardHeader, PageTitle } from '@/components/ui/primitives'
 import { PendingState, ResourceView } from '@/components/ui/states'
 import { useComplexes, useManifest } from '@/lib/data'
-import { hasKakaoKey } from '@/lib/kakao'
 import type { Complex } from '@/types'
 
 function Finder({ complexes }: { complexes: Complex[] }) {
@@ -14,7 +13,7 @@ function Finder({ complexes }: { complexes: Complex[] }) {
   const c = complexes.find((x) => x.id === id) ?? null
   return (
     <Card>
-      <CardHeader title="단지 주변 시설 찾기" desc="단지를 고르면 좌표 기준 직선거리로 학교·병원·약국·마트·공원·버스정류장을 조회합니다(Kakao 장소 검색)" />
+      <CardHeader title="단지 주변 시설 찾기" desc="단지를 고르면 좌표 기준 직선거리로 학교·병원·약국·마트·공원·버스정류장을 조회합니다(OpenStreetMap)" />
       <CardBody>
         <ComplexPicker complexes={complexes} exclude={id ? [id] : []} onPick={setId} placeholder="단지 검색" />
         {c && (
@@ -50,14 +49,6 @@ export default function LivingPage() {
         </CardBody>
       </Card>
 
-      {!hasKakaoKey && (
-        <Card>
-          <PendingState title="주변 시설 조회 연결 대기 중">
-            Kakao 지도 JavaScript 키가 설정되지 않아 주변 시설을 조회할 수 없습니다. 키를 설정하면 아래 기능이 동작합니다.
-          </PendingState>
-        </Card>
-      )}
-
       {mres.status === 'ok' && !ready ? (
         <Card>
           <PendingState />
@@ -76,7 +67,7 @@ export default function LivingPage() {
         <CardBody>
           <ul className="space-y-2 text-[13px] leading-relaxed text-ink">
             <li>
-              <Badge tone="accent">구현</Badge> 단지 좌표 주변의 학교·병원·약국·대형마트·편의점·공원·버스정류장 조회 (Kakao 장소 검색, 지도 키 필요)
+              <Badge tone="accent">구현</Badge> 단지 좌표 주변의 학교·병원·약국·대형마트·편의점·공원·버스정류장 조회 (OpenStreetMap, 단지 좌표 필요)
             </li>
             <li>
               <Badge tone="accent">구현</Badge> 학교 목록과 단지별 가까운 학교 (전국초중등학교위치표준데이터 — 활용신청 후 수집되면 표시)
