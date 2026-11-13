@@ -414,6 +414,21 @@ class EnrichTest(unittest.TestCase):
         self.assertEqual(sorted(k for k in cache if not k.startswith("_")), ["c0", "c1"])  # 예산이 떨어지면 다음 수집 때 이어서
         self.assertEqual(cache["_centers"]["왕지동"], [34.97, 127.52])
 
+    def test_manual_coords_override_and_are_validated(self):
+        cache = {"c1": {"lat": 34.9, "lng": 127.5, "source": "OSM"}, "c3": {"lat": None, "lng": None}}
+        manual = {"c1": {"lat": 34.95, "lng": 127.51, "source": "브이월드 지오코더"}, "c2": {"lat": 37.5, "lng": 127.0},
+                  "c3": {"lat": "34.96", "lng": "127.52"}, "c4": {"lat": "x"}, "_meta": {}}
+        self.assertEqual(enrich.merge_manual_coords(cache, manual), 2)
+        self.assertEqual((cache["c1"]["lat"], cache["c1"]["source"]), (34.95, "브이월드 지오코더"))
+        self.assertEqual(cache["c3"]["lat"], 34.96)
+        self.assertNotIn("c2", cache)  # 순천 밖 좌표는 버린다
+        self.assertEqual(enrich.merge_manual_coords(cache, ["잘못된 형식"]), 0)
+        # 직접 올린 좌표가 있는 단지는 자동 검색을 건너뛴다
+        calls = []
+        enrich.geocode_complexes([{"id": "c3", "name": "x", "umdNm": "왕지동"}], cache, NOW1, sleep=lambda _s: None,
+                                 get=lambda *a, **k: (calls.append(1), b"[]")[1])
+        self.assertEqual(calls, [])
+
 
 def nom_fake(q: str) -> list[dict]:
     """가짜 Nominatim 응답: 법정동 중심 2곳과 몇몇 단지."""

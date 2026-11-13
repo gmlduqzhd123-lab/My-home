@@ -133,6 +133,31 @@ def geocode_complexes(complexes: list[dict], cache: dict, now: datetime, *, get:
     return cache
 
 
+def merge_manual_coords(cache: dict, manual: object) -> int:
+    """운영자가 올린 좌표 파일(data-cache/geocode-manual.json)을 좌표 캐시에 덮어쓴다(자동 검색보다 우선).
+
+    형식: {"<단지 id>": {"lat": 위도, "lng": 경도, "source": "...", "query": "...", "at": "..."}}
+    순천시 일대 범위를 벗어나거나 숫자가 아닌 값은 버린다. 반영한 개수를 돌려준다.
+    """
+    if not isinstance(manual, dict):
+        return 0
+    lng_min, lat_max, lng_max, lat_min = (float(x) for x in config.SUNCHEON_VIEWBOX.split(","))
+    n = 0
+    for cid, v in manual.items():
+        if not isinstance(cid, str) or cid.startswith("_") or not isinstance(v, dict):
+            continue
+        try:
+            lat, lng = float(v["lat"]), float(v["lng"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not (lat_min <= lat <= lat_max and lng_min <= lng <= lng_max):
+            continue
+        cache[cid] = {"lat": round(lat, 6), "lng": round(lng, 6), "source": str(v.get("source") or "직접 입력"),
+                      "query": v.get("query"), "at": v.get("at"), "manual": True}
+        n += 1
+    return n
+
+
 # ───────────────────────── K-apt ─────────────────────────
 
 def _body(data: dict) -> dict:
