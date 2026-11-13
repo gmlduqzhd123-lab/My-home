@@ -57,9 +57,13 @@ SCHOOL_EDC_SPORT = "8522000"  # 전남광주통합특별시순천교육지원청
 # 한국토지주택공사 분양임대공고문 조회 서비스 (https://www.data.go.kr/data/15058530/openapi.do)
 LH_NOTICE_URL = "https://apis.data.go.kr/B552555/lhLeaseNoticeInfo1/lhLeaseNoticeInfo1"
 LH_NOTICE_PAGE = "https://www.data.go.kr/data/15058530/openapi.do"
-# 브이월드(국토교통부 공간정보 오픈플랫폼) 지오코더 2.0 — 주소 → 좌표
-VWORLD_ADDRESS_URL = "https://api.vworld.kr/req/address"
-VWORLD_GEOCODER_PAGE = "https://www.vworld.kr/dev/v4dv_geocoderguide2_s001.do"
+# 단지 좌표: OpenStreetMap Nominatim(키 불필요). 이용 정책 https://operations.osmfoundation.org/policies/nominatim/
+NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
+NOMINATIM_PAGE = "https://nominatim.org/"
+NOMINATIM_UA = "suncheon-zip-collector/1.0"
+NOMINATIM_INTERVAL = 1.1  # 초당 1회 이하
+# 검색 범위(순천시 일대): 경도 최소, 위도 최대, 경도 최대, 위도 최소
+SUNCHEON_VIEWBOX = "127.15,35.15,127.70,34.75"
 
 SOURCE_TRADE = "국토교통부 아파트 매매 실거래가 상세 자료"
 

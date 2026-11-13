@@ -1,11 +1,13 @@
-"""선택 연계: 단지 좌표(브이월드 지오코더), K-apt 공동주택 기본정보, 청약홈 분양정보.
+"""선택 연계: 단지 좌표(OpenStreetMap Nominatim), K-apt 공동주택 기본정보, 청약홈 분양정보.
 
 모두 실패해도 실거래 수집에는 영향을 주지 않는다. 확인되지 않은 값은 만들지 않는다.
 """
 from __future__ import annotations
 
 import json
+import math
 import re
+import time
 from datetime import datetime, timedelta
 from typing import Callable
 
@@ -34,61 +36,100 @@ def _stale(iso: str | None, now: datetime, days: int) -> bool:
 
 # ───────────────────────── 좌표 ─────────────────────────
 
-def _vworld_point(rest_key: str, query: str, kind: str, get: Get, domain: str | None) -> tuple[float, float] | None:
-    """브이월드 지오코더 2.0 으로 주소 1건을 좌표(lat, lng)로 바꾼다. 결과가 없으면 None.
+def _dist_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    r = math.radians
+    a = math.sin(r(lat2 - lat1) / 2) ** 2 + math.cos(r(lat1)) * math.cos(r(lat2)) * math.sin(r(lng2 - lng1) / 2) ** 2
+    return 2 * 6371000 * math.asin(math.sqrt(a))
 
-    응답: {"response": {"status": "OK"|"NOT_FOUND"|"ERROR", "refined": {"text": ...},
-                         "result": {"point": {"x": 경도, "y": 위도}}, "error": {"code", "text"}}}
+
+def name_variants(name: str) -> list[str]:
+    """OSM 에 단지명이 다르게 적혀 있을 때를 대비한 검색어 후보(앞의 것부터 시도)."""
+    bases = [name, name.replace("에스-클래스", "S-클래스").replace("에스클래스", "S클래스")]
+    out: list[str] = []
+    for b in bases:
+        for c in (b, re.sub(r"^순천", "", b)):
+            if len(c) >= 2:
+                out += [c, c + "아파트"]
+    return list(dict.fromkeys(out))
+
+
+class _Nominatim:
+    """OpenStreetMap Nominatim 검색(키 불필요). 이용 정책: 초당 1회 이하, 결과 캐시, 식별 가능한 User-Agent."""
+
+    def __init__(self, get: Get, sleep: Callable[[float], None], budget: int):
+        self.get, self.sleep, self.budget = get, sleep, budget
+
+    def search(self, q: str) -> list[dict]:
+        if self.budget <= 0:
+            raise _BudgetOut
+        self.budget -= 1
+        self.sleep(config.NOMINATIM_INTERVAL)
+        data = self.get(config.NOMINATIM_URL, {"q": q, "format": "jsonv2", "limit": 5, "countrycodes": "kr",
+                                               "viewbox": config.SUNCHEON_VIEWBOX, "bounded": 1, "accept-language": "ko"},
+                        headers={"User-Agent": config.NOMINATIM_UA})
+        try:
+            out = json.loads(data.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            raise ApiError("Nominatim 응답이 JSON 이 아닙니다.") from None
+        return out if isinstance(out, list) else []
+
+
+class _BudgetOut(Exception):
+    pass
+
+
+_OK_CATEGORY = {"landuse", "building", "place"}
+
+
+def geocode_complexes(complexes: list[dict], cache: dict, now: datetime, *, get: Get = http_get,
+                      sleep: Callable[[float], None] = time.sleep, budget: int = 400,
+                      max_dist: float = 2500) -> dict:
+    """좌표가 없는 단지를 OpenStreetMap(Nominatim)에서 단지명으로 찾아 cache 에 기록한다.
+
+    지번 주소 검색은 OSM 에 지번이 거의 없어 쓸 수 없다. 대신 단지명 후보로 검색하고,
+    결과가 아파트·주거지 성격이며 그 단지 법정동 중심에서 max_dist(m) 안일 때만 좌표로 인정한다.
+    찾지 못하면 좌표를 만들지 않고 실패로 기록한다(30일 뒤 재시도). 요청 수는 budget 으로 제한한다.
     """
-    params = {"service": "address", "request": "getcoord", "version": "2.0", "crs": "epsg:4326",
-              "address": query, "refine": "true", "simple": "false", "format": "json", "type": kind,
-              "key": rest_key}
-    if domain:
-        params["domain"] = domain
-    res = _json(get(config.VWORLD_ADDRESS_URL, params, secrets=[rest_key])).get("response") or {}
-    status = str(res.get("status", "")).upper()
-    if status == "NOT_FOUND":
-        return None
-    if status != "OK":
-        err = res.get("error") or {}
-        raise ApiError(f"브이월드 지오코더 오류: {err.get('code') or status or '응답 없음'} {err.get('text') or ''}".strip(),
-                       auth="KEY" in str(err.get("code", "")).upper())
-    # 다른 시군의 동명 주소가 잡히는 것을 막는다
-    if "순천" not in str((res.get("refined") or {}).get("text", "")):
-        return None
-    pt = (res.get("result") or {}).get("point") or {}
+    nom = _Nominatim(get, sleep, budget)
+    centers: dict = cache.setdefault("_centers", {})
+
+    def center(umd: str) -> tuple[float, float] | None:
+        if umd not in centers:
+            hits = nom.search(", ".join(reversed(umd.split())) + ", 순천시")
+            centers[umd] = [float(hits[0]["lat"]), float(hits[0]["lon"])] if hits else None
+        return tuple(centers[umd]) if centers[umd] else None
+
     try:
-        return round(float(pt["y"]), 6), round(float(pt["x"]), 6)
-    except (KeyError, TypeError, ValueError):
-        return None
-
-
-def geocode_complexes(complexes: list[dict], cache: dict, rest_key: str, now: datetime, *,
-                      get: Get = http_get, limit: int = 600, domain: str | None = None) -> dict:
-    """좌표가 없는 단지의 주소를 브이월드 지오코더로 변환해 cache 에 기록한다.
-
-    검색 결과가 없으면 좌표를 만들지 않고 실패로 기록한다(30일 뒤 재시도).
-    """
-    done = 0
-    for c in complexes:
-        if done >= limit:
-            break
-        entry = cache.get(c["id"])
-        if entry and (entry.get("lat") is not None or not _stale(entry.get("at"), now, 30)):
-            continue
-        # 실거래 단지는 지번 주소, 거래 없는 K-apt 단지는 도로명(없으면 법정동) 주소로 찾는다
-        if c.get("jibun"):
-            query, kind = f"순천시 {c['umdNm']} {c['jibun']}", "parcel"
-        elif c["id"].startswith("k") and (c.get("roadAddress") or c.get("address")):
-            query, kind = (c["roadAddress"], "road") if c.get("roadAddress") else (c["address"], "parcel")
-        else:
-            continue
-        hit = _vworld_point(rest_key, query, kind, get, domain)
-        if hit:
-            cache[c["id"]] = {"lat": hit[0], "lng": hit[1], "source": "브이월드 지오코더", "query": query, "at": now.isoformat()}
-        else:
-            cache[c["id"]] = {"lat": None, "lng": None, "source": None, "query": query, "at": now.isoformat()}
-        done += 1
+        for c in complexes:
+            entry = cache.get(c["id"])
+            if entry and (entry.get("lat") is not None or not _stale(entry.get("at"), now, 30)):
+                continue
+            if not c.get("name") or not c.get("umdNm"):
+                continue
+            base = center(c["umdNm"])
+            if base is None:
+                continue
+            found = None
+            for q in name_variants(c["name"]):
+                for h in nom.search(q):
+                    if h.get("category") not in _OK_CATEGORY and h.get("type") not in ("residential", "apartments"):
+                        continue
+                    try:
+                        lat, lng = float(h["lat"]), float(h["lon"])
+                    except (KeyError, TypeError, ValueError):
+                        continue
+                    if _dist_m(base[0], base[1], lat, lng) <= max_dist:
+                        found = (round(lat, 6), round(lng, 6), q, h.get("name"))
+                        break
+                if found:
+                    break
+            if found:
+                cache[c["id"]] = {"lat": found[0], "lng": found[1], "source": "OpenStreetMap(Nominatim) 단지명 검색",
+                                  "query": found[2], "osmName": found[3], "at": now.isoformat()}
+            else:
+                cache[c["id"]] = {"lat": None, "lng": None, "source": None, "query": c["name"], "at": now.isoformat()}
+    except _BudgetOut:
+        pass  # 나머지는 다음 수집 때 이어서 찾는다
     return cache
 
 
