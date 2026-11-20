@@ -1,6 +1,11 @@
 {
   "items": [
     {
+      "date": "2026-11-20",
+      "status": "ok",
+      "newTradesTotal": 10
+    },
+    {
       "date": "2026-11-19",
       "status": "ok",
       "newTradesTotal": 9
